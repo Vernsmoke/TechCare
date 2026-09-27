@@ -1,0 +1,838 @@
+/* Claude-inspired editorial skin. TechCare content and interactions remain its own.
+   Georgia is the local serif fallback for the reference's licensed display fonts.
+   Legacy --blue aliases keep all existing application surfaces in this palette. */
+:root {
+  --accent: #0066cc;
+  --accent-active: #0052a3;
+  --blue: #0052a3;
+  --blue-dark: #0052a3;
+  --blue-focus: var(--accent-active);
+  --blue-on-dark: #85bbff;
+  --blue-light: #edf5ff;
+  --blue-disabled: #e6dfd8;
+  --ink: #141413;
+  --body: #3d3d3a;
+  --muted: #65635d;
+  --line: #e6dfd8;
+  --line-soft: #ebe6df;
+  --surface: #faf9f5;
+  --background: #f5f0e8;
+  --pearl: #efe9de;
+  --dark-tile: #181715;
+  --on-dark: #faf9f5;
+  --muted-on-dark: #b8b4ac;
+  --gold: var(--accent-active);
+  --font-display: Georgia, 'Times New Roman', serif;
+  --radius: 12px;
+  --radius-large: 16px;
+  --radius-utility: 8px;
+  --shadow-float: 0 4px 20px rgb(20 20 19 / 6%);
+}
+:root[data-theme='dark'] {
+  --blue: #85bbff;
+  --blue-dark: #b5d6ff;
+  --blue-focus: #85bbff;
+  --blue-on-dark: #85bbff;
+  --blue-light: #20334d;
+  --blue-disabled: #283240;
+  --ink: #faf9f5;
+  --body: #e6dfd8;
+  --muted: #b8b4ac;
+  --line: #49443c;
+  --line-soft: #38342e;
+  --surface: #181715;
+  --background: #1f1e1b;
+  --pearl: #252320;
+  --gold: #85bbff;
+}
+body {
+  background: var(--surface);
+  color: var(--body);
+}
+h1,
+h2 {
+  color: var(--ink);
+  font-family: var(--font-display);
+  font-weight: 400;
+  letter-spacing: -0.035em;
+}
+h3 {
+  color: var(--ink);
+  font-family: var(--font);
+  letter-spacing: -0.02em;
+}
+.sidebar {
+  background: var(--background);
+  border-right-color: var(--line);
+}
+.brand,
+.brand > span > span {
+  color: var(--ink);
+}
+.brand-mark {
+  background: var(--accent);
+  color: #ffffff;
+}
+.brand-mark svg + svg {
+  color: var(--accent-active);
+  border-color: var(--background);
+}
+.brand small {
+  color: var(--muted);
+}
+.sidebar-help {
+  background: var(--pearl);
+  box-shadow: none;
+  border-color: var(--line);
+}
+.sidebar .nav-item.active,
+.sidebar .nav-item:hover {
+  background: var(--pearl);
+  color: var(--ink);
+}
+.nav-item.active > span:first-of-type {
+  text-decoration: none;
+}
+.nav-item.active .nav-icon {
+  background: var(--accent);
+  color: #ffffff;
+  box-shadow: none;
+}
+.sidebar-toggle,
+.sidebar-close {
+  color: var(--muted);
+}
+.topbar {
+  height: 72px;
+  background: var(--surface);
+}
+main {
+  max-width: 1280px;
+  padding: 32px 48px 64px;
+}
+.button {
+  min-height: 42px;
+  box-shadow: none;
+  white-space: nowrap;
+}
+/* TechCare blue with white text keeps primary actions easy to recognize. */
+.button.primary,
+.assistant-launcher,
+.assistant-composer button:not(:disabled) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+.button.primary:hover,
+.button.primary:active,
+.assistant-launcher:hover,
+.assistant-composer button:not(:disabled):hover {
+  background: var(--accent-active);
+  border-color: var(--accent-active);
+  color: #fff;
+}
+.button.secondary,
+.button.secondary:hover {
+  background: var(--surface);
+  border-color: var(--line);
+  color: var(--ink);
+}
+.button.secondary:hover {
+  background: var(--pearl);
+}
+.button.primary:disabled {
+  background: var(--blue-disabled);
+  color: var(--muted);
+}
+.text-link,
+.text-button,
+.sidebar-help a {
+  color: var(--blue);
+}
+.search-field,
+.filter-tabs button,
+.assistant-topics button,
+.assistant-choices button,
+.assistant-composer {
+  border-radius: 8px;
+  box-shadow: none;
+}
+.filter-tabs button.active {
+  background: var(--pearl);
+  border-color: var(--line);
+}
+.field input,
+.field textarea,
+.field select {
+  background: var(--surface);
+  color: var(--ink);
+}
+.field input:focus-visible,
+.field textarea:focus-visible,
+.field select:focus-visible {
+  border-color: var(--blue-focus);
+  outline-color: var(--blue-focus);
+}
+.home-page .welcome-hero {
+  grid-template-columns: 1fr 1fr;
+  gap: 48px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 38px 0 56px;
+  min-height: 430px;
+  overflow: visible;
+}
+.home-page .hero-copy {
+  padding: 0;
+}
+.home-page .hero-copy h1 {
+  font-size: clamp(44px, 4.9vw, 68px);
+  font-weight: 400;
+  line-height: 1.06;
+  letter-spacing: -0.045em;
+  margin: 0 0 24px;
+}
+.home-page .hero-copy h1 span {
+  color: var(--ink);
+}
+.home-page .hero-copy p {
+  font-size: 17px;
+  max-width: 320px;
+  line-height: 1.55;
+  margin-bottom: 28px;
+}
+.home-page .eyebrow {
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  margin-bottom: 24px;
+}
+.home-page .eyebrow svg {
+  color: var(--accent-active);
+}
+.home-page .hero-actions {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.home-page .hero-actions .button {
+  font-size: 14px;
+  padding: 12px 19px;
+}
+.hero-picture {
+  margin: 0;
+  min-height: 330px;
+  border-radius: 16px;
+}
+.featured-guide {
+  background: var(--dark-tile);
+  color: var(--on-dark);
+  padding: 24px;
+  border: 1px solid #39352f;
+  border-radius: 16px;
+  align-self: center;
+  min-width: 0;
+}
+.featured-guide-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted-on-dark);
+}
+.featured-guide-top > svg {
+  color: #85bbff;
+}
+.featured-time {
+  margin-left: auto;
+  font-size: 11px;
+}
+.featured-topics {
+  display: flex;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin: 24px 0;
+}
+.featured-topics button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #c9c5be;
+  font-size: 12px;
+  padding: 9px 11px;
+  border: 1px solid #49443c;
+  border-radius: 6px;
+  min-height: 40px;
+}
+.featured-topics button[aria-pressed='true'] {
+  color: #faf9f5;
+  background: #283240;
+  border-color: #8e8b82;
+}
+.featured-guide h2 {
+  color: #faf9f5;
+  font-size: 29px;
+  line-height: 1.15;
+  margin-bottom: 12px;
+  letter-spacing: -0.025em;
+}
+.featured-guide-content > p {
+  color: #b8b4ac;
+  font-size: 13px;
+  margin-bottom: 22px;
+}
+.featured-first-step {
+  padding: 16px;
+  background: #252320;
+  border-radius: 8px;
+  min-height: 106px;
+}
+.featured-first-step > span {
+  font-size: 11px;
+  color: #85bbff;
+}
+.featured-first-step p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #e6dfd8;
+  margin: 8px 0 0;
+}
+.featured-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  min-height: 44px;
+  color: #faf9f5;
+  font-size: 13px;
+  margin-top: 16px;
+  padding: 6px 0;
+}
+.featured-guide :focus-visible {
+  outline-color: #85bbff;
+}
+.quick-links {
+  gap: 0;
+  margin: 0 0 64px;
+  padding: 24px 0;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+.quick-link {
+  background: transparent;
+  padding: 10px 16px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  border-radius: 0;
+  gap: 12px;
+}
+.quick-link:last-child {
+  border-right: 0;
+}
+.quick-link:hover {
+  background: var(--background);
+  box-shadow: none;
+  transform: none;
+}
+.quick-link .action-icon {
+  background: transparent;
+  width: 30px;
+  height: 36px;
+  color: var(--muted);
+}
+.home-page .quick-link h2 {
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.02em;
+}
+.quick-arrow {
+  color: var(--muted);
+}
+.home-columns {
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: 40px;
+}
+.home-page .section-heading {
+  margin-bottom: 25px;
+}
+.home-page .section-heading h2 {
+  font-size: 34px;
+  font-weight: 400;
+}
+.home-page .section-heading > .text-link {
+  font-size: 12px;
+}
+.guide-grid {
+  gap: 16px;
+}
+.guide-card {
+  padding: 26px;
+  border: 1px solid transparent;
+  background: var(--pearl);
+  box-shadow: none;
+}
+.guide-card:hover {
+  border-color: var(--muted);
+  box-shadow: none;
+}
+.guide-icon,
+.tone-1,
+.tone-2,
+.tone-3 {
+  background: transparent;
+  color: var(--ink);
+  margin-bottom: 25px;
+}
+.home-page .guide-card h3 {
+  font-family: var(--font);
+  font-size: 18px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+.home-page .guide-meta {
+  color: var(--muted);
+  font-size: 12px;
+}
+.booth-card {
+  background: var(--pearl);
+  border: 0;
+  box-shadow: none;
+  padding: 30px;
+}
+.home-page .booth-card h2 {
+  font-weight: 400;
+  font-size: 32px;
+}
+.booth-icon {
+  background: transparent;
+  color: var(--ink);
+}
+.booth-details {
+  border-color: var(--line);
+}
+.home-page .booth-card > p {
+  font-size: 14px;
+}
+.booth-button,
+.booth-button:hover {
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--line);
+}
+.community-note {
+  padding: 26px 4px;
+}
+.home-page .community-note h3 {
+  font-family: var(--font-display);
+  font-size: 25px;
+  font-weight: 400;
+}
+.home-page .community-note p {
+  font-size: 14px;
+}
+.care-note {
+  color: var(--muted);
+  border-color: var(--line);
+}
+.recent-discussions {
+  margin-top: 48px;
+}
+.first-discussion {
+  background: var(--background);
+  border: 1px solid var(--line);
+  padding: 28px;
+}
+.first-discussion .action-icon {
+  background: var(--pearl);
+}
+.home-page .first-discussion h3 {
+  font-size: 18px;
+}
+.home-page .first-discussion p {
+  font-size: 14px;
+}
+.footer {
+  background: var(--dark-tile);
+  color: var(--muted-on-dark);
+  padding: 48px 48px 96px;
+  border: 0;
+  font-size: 12px;
+  gap: 24px;
+}
+.footer a {
+  color: var(--on-dark);
+}
+.page-heading h1 {
+  font-size: 44px;
+  font-weight: 400;
+}
+.library-card,
+.resource-card,
+.member-card {
+  background: var(--background);
+  box-shadow: none;
+}
+.dialog-heading h2 {
+  font-size: 30px;
+  font-weight: 400;
+}
+.assistant-header {
+  background: var(--pearl);
+}
+.assistant-header h2 {
+  font-family: var(--font);
+}
+.assistant-launcher {
+  border-radius: 8px;
+}
+:root[data-theme='dark']
+  :is(
+    .button.primary,
+    .assistant-launcher,
+    .assistant-composer button:not(:disabled),
+    .nav-item.active .nav-icon,
+    .skip-link
+  ) {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #ffffff;
+}
+:root[data-theme='dark'] :is(.button.primary, .assistant-launcher):hover {
+  background: #0052a3;
+  color: #ffffff;
+}
+:root[data-theme='dark'] .button.booth-button,
+:root[data-theme='dark'] .button.booth-button:hover {
+  color: var(--ink);
+  background: var(--surface);
+  border-color: var(--line);
+}
+:root[data-theme='dark'] .brand,
+:root[data-theme='dark'] .brand > span > span {
+  color: var(--ink);
+}
+@media (max-width: 1199px) {
+  main {
+    padding: 24px 30px 48px;
+  }
+  .home-page .welcome-hero {
+    gap: 28px;
+  }
+  .featured-guide {
+    padding: 20px;
+  }
+  .featured-topics {
+    gap: 4px;
+  }
+  .featured-topics button {
+    padding: 8px;
+  }
+  .home-columns {
+    grid-template-columns: minmax(0, 1fr) 270px;
+    gap: 24px;
+  }
+  .guide-card {
+    padding: 22px;
+  }
+  .quick-link {
+    padding: 8px 10px;
+  }
+}
+@media (max-width: 1000px) {
+  .home-columns {
+    grid-template-columns: 1fr;
+  }
+  .home-secondary {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  .care-note {
+    grid-column: 1 / -1;
+  }
+}
+@media (max-width: 767px) {
+  main {
+    padding: 16px 20px 40px;
+  }
+  .topbar {
+    height: 64px;
+  }
+  .home-page .welcome-hero {
+    grid-template-columns: 1fr;
+    gap: 32px;
+    padding: 26px 0 32px;
+  }
+  .home-page .hero-copy h1 {
+    font-size: clamp(40px, 10vw, 56px);
+    margin-bottom: 20px;
+  }
+  .home-page .hero-copy p {
+    font-size: 16px;
+  }
+  .home-page .hero-copy .eyebrow {
+    font-size: 9px;
+    margin-bottom: 20px;
+  }
+  .home-page .hero-actions .button {
+    font-size: 13px;
+    padding: 11px 15px;
+  }
+  .featured-guide {
+    padding: 22px;
+  }
+  .featured-guide h2 {
+    font-size: 28px;
+  }
+  .featured-topics button {
+    padding: 8px 9px;
+    font-size: 11px;
+  }
+  .quick-links {
+    grid-template-columns: 1fr 1fr;
+    gap: 18px 0;
+    padding: 20px 0;
+    margin-bottom: 40px;
+  }
+  .quick-link {
+    flex-direction: row;
+    align-items: center;
+    padding: 5px 10px;
+  }
+  .quick-link:nth-child(2) {
+    border-right: 0;
+  }
+  .quick-link .quick-arrow {
+    display: none;
+  }
+  .home-page .quick-link h2 {
+    font-size: 12px;
+  }
+  .home-page .section-heading h2 {
+    font-size: 28px;
+  }
+  .home-page .section-heading > .text-link {
+    font-size: 11px;
+  }
+  .guide-card {
+    padding: 20px 16px;
+  }
+  .home-page .guide-card h3 {
+    font-size: 16px;
+  }
+  .home-page .guide-meta {
+    font-size: 11px;
+  }
+  .home-secondary {
+    grid-template-columns: 1fr;
+  }
+  .booth-card {
+    padding: 28px;
+  }
+  .community-note {
+    padding: 12px 4px;
+  }
+  .footer {
+    padding: 36px 24px 96px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .page-heading h1 {
+    font-size: 36px;
+  }
+}
+@media (max-width: 380px) {
+  .featured-guide {
+    padding: 18px;
+  }
+  .featured-topics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .guide-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Larger everyday text; secondary details stay readable on phones too. */
+
+body {
+  font-size: 18px;
+}
+.brand,
+.brand > span > span {
+  color: var(--blue);
+}
+.home-page .hero-copy p {
+  font-size: 20px;
+  max-width: none;
+}
+.button,
+.text-link,
+.text-button,
+.home-page .hero-actions .button,
+.home-page .section-heading > .text-link,
+.home-page .community-note .text-link,
+.home-page .first-discussion .text-link,
+.home-page .booth-button {
+  font-size: 16px;
+}
+.button {
+  min-height: 46px;
+}
+.sidebar .nav-item {
+  font-size: 15px;
+}
+.breadcrumb,
+.topbar .text-button.sign-in,
+.topbar .button.small {
+  font-size: 15px;
+}
+.home-page .quick-link h2 {
+  font-size: 16px;
+}
+.featured-guide-top,
+.featured-time {
+  font-size: 14px;
+}
+.featured-topics button {
+  min-height: 44px;
+  font-size: 14px;
+}
+.featured-first-step > span {
+  font-size: 14px;
+}
+.featured-first-step p,
+.featured-open {
+  font-size: 16px;
+}
+.featured-guide h2 {
+  font-size: 32px;
+  margin-bottom: 24px;
+}
+.home-page .guide-card h3 {
+  font-size: 21px;
+}
+.home-page .guide-meta,
+.home-page .booth-details small,
+.home-page .discussion-preview-row p,
+.footer {
+  font-size: 14px;
+}
+.home-page .booth-details span {
+  font-size: 17px;
+}
+.home-page .community-note p,
+.home-page .first-discussion p,
+.page-heading p,
+.panel > p,
+.library-card p,
+.resource-body p,
+.wide-callout p,
+.dialog-heading p {
+  font-size: 17px;
+}
+.field > span,
+.field small,
+.form-hint,
+.field > .field-error {
+  font-size: 14px;
+}
+.field input,
+.field textarea,
+.field select {
+  font-size: 17px;
+}
+.assistant-message,
+.assistant-message h3,
+.assistant-composer input {
+  font-size: 16px;
+}
+.assistant-message a,
+.assistant-topics button,
+.assistant-choices button,
+.assistant-header p,
+.assistant-footer button {
+  font-size: 14px;
+}
+.assistant-speaker,
+.assistant-source,
+.assistant-privacy {
+  font-size: 12px;
+}
+.assistant-header h2 {
+  font-size: 19px;
+}
+.assistant-launcher {
+  font-size: 16px;
+}
+@media (max-width: 1100px) {
+  .quick-links {
+    grid-template-columns: 1fr 1fr;
+    gap: 16px 0;
+  }
+  .quick-link:nth-child(2) {
+    border-right: 0;
+  }
+}
+@media (max-width: 767px) {
+  .home-page .hero-copy p {
+    font-size: 18px;
+  }
+  .home-page .quick-link h2 {
+    font-size: 15px;
+  }
+  .home-page .guide-card h3 {
+    font-size: 19px;
+  }
+  .featured-topics {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+  .featured-topics button {
+    justify-content: center;
+  }
+  .topbar {
+    padding-inline: 12px;
+    gap: 8px;
+  }
+  .topbar-actions {
+    gap: 8px;
+  }
+  .topbar .button.small {
+    font-size: 14px;
+    padding-inline: 12px;
+  }
+  .topbar .button.small > svg {
+    display: none;
+  }
+  .breadcrumb {
+    font-size: 14px;
+  }
+}
+@media (max-width: 380px) {
+  .topbar-actions {
+    gap: 4px;
+  }
+  .topbar .button.small {
+    padding-inline: 9px;
+  }
+  .topbar .text-button.sign-in {
+    font-size: 14px;
+  }
+  .home-page .section-heading {
+    align-items: flex-start;
+  }
+  .home-page .section-heading > .text-link {
+    font-size: 14px;
+  }
+  .home-page .hero-actions {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+  .home-page .hero-actions .button {
+    justify-content: center;
+  }
+}

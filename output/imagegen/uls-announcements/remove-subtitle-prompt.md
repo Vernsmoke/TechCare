@@ -1,0 +1,3 @@
+Created with the built-in image generation tool.
+
+Use case: precise-object-edit. Make one tiny local edit to this full square image: remove ONLY the small white uppercase words 'A NEW BEGINNING' in the upper sky below the university logo, including every letter and any shadow. Fill just that lettering area with seamless matching blue sky and cloud texture. Preserve the entire remainder of the image exactly: square framing, university logo/seal and name at top, blank central sky, campus building, statue, all landscaping, clouds, sunlight, cars, gold confetti, footer 'uls.edu.ph', colors, and positions. Do not add any new text or bring back the previously removed Welcome Back greeting. Return the full square image.

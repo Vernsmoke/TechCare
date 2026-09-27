@@ -1,0 +1,55 @@
+/* Both images load together so the theme button can crossfade without a blank frame. */
+.app-body {
+  position: relative;
+  isolation: isolate;
+}
+
+.campus-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--background);
+}
+
+.campus-backdrop img {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: opacity 320ms ease;
+}
+
+.campus-night {
+  opacity: 0;
+}
+
+:root[data-theme='dark'] .campus-day {
+  opacity: 0;
+}
+
+:root[data-theme='dark'] .campus-night {
+  opacity: 1;
+}
+
+/* A solid fallback and near-opaque surface keep text readable over any scene. */
+.campus-content {
+  background: var(--background);
+  background: color-mix(in srgb, var(--background) 96%, transparent);
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-large);
+  padding: clamp(16px, 2vw, 28px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .campus-backdrop img {
+    transition: none;
+  }
+}
+
+@media print {
+  .campus-backdrop {
+    display: none;
+  }
+}

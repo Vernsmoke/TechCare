@@ -1,0 +1,9 @@
+Generation mode: built-in image_gen tool
+
+Use case: compositing.
+Asset type: wide 16:9 background image for a University of La Salette web application.
+Primary request: Create a polished, restrained university campus background inspired by the supplied campus photographs and blue university branding.
+Input images: background 2.JPG and university_of_la_salette_cover.jpg are campus architectural references; logo 2.png and logo.png are brand color references only, do not reproduce any logo or lettering.
+Composition: Use the courtyard photograph as the principal coherent scene, retaining its recognizable cream campus buildings, courtyard gardens and religious statue. Preserve plausible architecture and the real campus character. Wide landscape with generous quiet space across the upper half and center for an independently rendered web interface. Let campus details appear softly in the lower half and at the edges.
+Style: refined photographic web background, subtle atmospheric softness, smooth deep navy and royal blue color grading drawn from the university logo, muted cool whites and restrained green foliage. Soft daylight under an elegant translucent blue veil, darkest toward the edges, no harsh contrast behind the central UI area. Keep recognizable campus detail, avoid excessive blur or a busy collage.
+Constraints: background only, no text, no lettering, no watermarks, no drawn logo, no user interface, no login box, no buttons, no border, no invented people, no futuristic buildings. Opaque background. High resolution, landscape 16:9.
