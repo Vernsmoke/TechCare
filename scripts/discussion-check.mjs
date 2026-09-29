@@ -7,19 +7,21 @@ import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import { passwordHash } from '../src/lib/server/auth.mjs';
 import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { initializeTestDatabase } from '../tests/mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-browser-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 const origin = 'http://127.0.0.1:3018',
   password = 'Synthetic-content-check-2026';
-run(
+await run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
   'Discussion QA',
   'content-qa@example.test',
   passwordHash(password),
   now(),
 );
-run(
+await run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'member',1,?)",
   'QA Member',
   'member-discussion@example.test',
@@ -27,7 +29,7 @@ run(
   now(),
 );
 for (let i = 1; i <= 3; i++)
-  run(
+  await run(
     "INSERT INTO posts(id,user_id,title,body,category,status,created) VALUES(?,2,?,?,?,'published',?)",
     i,
     [
@@ -39,11 +41,11 @@ for (let i = 1; i <= 3; i++)
     i === 3 ? 'Connectivity' : 'General',
     now() + i,
   );
-run(
+await run(
   "INSERT INTO comments(id,post_id,user_id,body,status,created) VALUES(1,3,1,'Check whether other devices lose the connection too. This helps narrow down the problem.','published',?)",
   now(),
 );
-closeDatabases();
+await closeDatabases();
 const server = spawn(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3018'],
@@ -223,7 +225,7 @@ try {
     server.kill();
     await new Promise((resolve) => server.once('exit', resolve));
   }
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (
     child.startsWith('techcare-discussion-browser-') &&

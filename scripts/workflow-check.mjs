@@ -7,18 +7,20 @@ import { tmpdir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { passwordHash } from '../src/lib/server/auth.mjs';
 import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { initializeTestDatabase } from '../tests/mysql-test-db.mjs';
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-browser-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 const origin = 'http://127.0.0.1:3001',
   password = 'Synthetic-browser-check-2026';
-run(
+await run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
   'QA Administrator',
   'qa-admin@example.test',
   passwordHash(password),
   now(),
 );
-closeDatabases();
+await closeDatabases();
 const server = spawn(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3001'],
@@ -514,7 +516,7 @@ try {
   await browser?.close();
   server.kill();
   await new Promise((r) => server.once('exit', r));
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(resolve(tmpdir()), resolve(temporary));
   if (child.startsWith('techcare-browser-') && !child.includes('..') && !isAbsolute(child))
     await rm(temporary, { recursive: true, force: true });

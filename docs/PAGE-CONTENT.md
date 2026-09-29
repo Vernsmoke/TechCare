@@ -22,10 +22,10 @@ Admin saves refresh content in that browser session. Other visitors see updated 
 
 All management endpoints require the admin role on the server. Moderators retain their existing ability to publish a new media resource through Moderation, but cannot edit, hide, or delete existing page content. Members and guests can only read published content.
 
-Migration 4 preserves existing resources, copies the four original guides and existing booth details into editable records once, and adds draft visibility and edit revisions. Data is stored in the existing SQLite database. Deleted defaults do not return on restart. Revision checks reject stale edits rather than overwriting a newer save. Mutations are audited. Replaced or deleted managed uploads are removed when no remaining content references them.
+The initial MySQL schema seeds the original guides, resources, and booth as editable records, with draft visibility and edit revisions. Deleted defaults do not return on restart. Revision checks reject stale edits rather than overwriting a newer save. Mutations are audited. Replaced or deleted managed uploads are removed when no remaining content references them.
 
 ## Verification
 
-`npm test` includes API permissions, CRUD, visibility, media access and cleanup, validation, conflict handling, rollback, and migration preservation checks.
+`npm test` includes API permissions, CRUD, visibility, media access and cleanup, validation, conflict handling, rollback, and MySQL persistence checks.
 
-`npm run test:content` builds the app and runs the real admin/public browser flow with Microsoft Edge against an isolated temporary database on port 3016. It checks guide creation/editing/hiding/deletion, assistant content, media publication, booth/homepage synchronization, accessibility, and mobile overflow. It does not change the preview's accounts or content. Reports and screenshots are saved under ignored `artifacts/`.
+`npm run test:content` builds the app and runs the real admin/public browser flow with Microsoft Edge against an isolated temporary MySQL database on port 3016. The configured MySQL test account must have `CREATE DATABASE` and `DROP DATABASE` privileges. It checks guide creation/editing/hiding/deletion, assistant content, media publication, booth/homepage synchronization, accessibility, and mobile overflow. It does not change the preview's accounts or content. Reports and screenshots are saved under ignored `artifacts/`.

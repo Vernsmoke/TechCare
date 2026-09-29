@@ -3,12 +3,14 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { handle } from '../src/lib/server/api.mjs';
+import { handle } from '../src/app/api/handlers.mjs';
 import { run, one, now, closeDatabases } from '../src/lib/server/db.mjs';
 import { passwordHash } from '../src/lib/server/auth.mjs';
+import { initializeTestDatabase } from './mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3017');
 async function call(path, data, cookie = '') {
@@ -31,13 +33,15 @@ try {
     hash = passwordHash(pw);
   for (const role of ['member', 'admin', 'moderator']) {
     ids[role] = Number(
-      run(
-        'INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,?,1,?)',
-        role,
-        `${role}@example.test`,
-        hash,
-        role,
-        now(),
+      (
+        await run(
+          'INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,?,1,?)',
+          role,
+          `${role}@example.test`,
+          hash,
+          role,
+          now(),
+        )
       ).lastInsertRowid,
     );
     sessions[role] = (
@@ -47,7 +51,7 @@ try {
       .split(';')[0];
   }
   for (let i = 1; i <= 25; i++)
-    run(
+    await run(
       "INSERT INTO posts(id,user_id,title,body,category,status,created) VALUES(?,?,?,?,?,'published',?)",
       i,
       ids.member,
@@ -56,11 +60,11 @@ try {
       'General',
       i,
     );
-  run(
+  await run(
     "INSERT INTO posts(id,user_id,title,body,category,status,created) VALUES(26,?,'Hidden question','Not approved yet.','General','pending',26)",
     ids.member,
   );
-  run(
+  await run(
     "INSERT INTO comments(id,post_id,user_id,body,status,created) VALUES(1,1,?,'Approved answer','published',1),(2,1,?,'Pending answer','pending',2),(3,26,?,'Hidden parent answer','published',3)",
     ids.admin,
     ids.member,
@@ -109,7 +113,7 @@ try {
     const vote = { kind: 'post', id: 1, value: 1 };
     assert.deepEqual((await call('vote', vote, sessions.member)).data, { score: 1, myVote: 1 });
     assert.deepEqual((await call('vote', vote, sessions.member)).data, { score: 1, myVote: 1 });
-    assert.equal(one('SELECT count(*) AS n FROM post_votes WHERE post_id=1').n, 1);
+    assert.equal((await one('SELECT count(*) AS n FROM post_votes WHERE post_id=1')).n, 1);
     assert.deepEqual((await call('vote', { ...vote, value: -1 }, sessions.member)).data, {
       score: -1,
       myVote: -1,
@@ -121,9 +125,8 @@ try {
       score: 1,
       myVote: 0,
     });
-    closeDatabases();
+    await closeDatabases();
     assert.equal((await call('post?id=1', null, sessions.admin)).data.post.myVote, 1);
-    assert.equal(one('SELECT count(*) AS n FROM migrations WHERE version=5').n, 1);
   });
   await test('top sorting uses persisted scores before pagination and preserves search/category filters', async () => {
     assert.equal((await call('posts?sort=newest')).data.posts[0].id, 25);
@@ -145,7 +148,7 @@ try {
       (await call('vote', { kind: 'comment', id: 1, value: -1 }, sessions.member)).data,
       { score: -1, myVote: -1 },
     );
-    closeDatabases();
+    await closeDatabases();
     assert.equal((await call('comments?post=1')).data.comments[0].score, -1);
   });
   await test('member comments remain moderated while staff comments publish immediately', async () => {
@@ -161,7 +164,7 @@ try {
       201,
     );
     assert.equal((await call('post?id=1')).data.post.replies, 2);
-    run("UPDATE posts SET status='rejected' WHERE id=1");
+    await run("UPDATE posts SET status='rejected' WHERE id=1");
     assert.equal((await call('comments?post=1')).status, 404);
     assert.equal(
       (await call('vote', { kind: 'comment', id: 1, value: 0 }, sessions.member)).status,
@@ -171,14 +174,20 @@ try {
       (await call('vote', { kind: 'post', id: 1, value: 0 }, sessions.member)).status,
       404,
     );
-    run('DELETE FROM comments WHERE id=1');
-    assert.equal(one('SELECT count(*) AS n FROM comment_votes').n, 0);
-    run('DELETE FROM posts WHERE id=1');
-    assert.equal(one('SELECT count(*) AS n FROM post_votes').n, 0);
-    assert.equal(one('SELECT count(*) AS n FROM pragma_foreign_key_check').n, 0);
+    await run('DELETE FROM comments WHERE id=1');
+    assert.equal((await one('SELECT count(*) AS n FROM comment_votes')).n, 0);
+    await run('DELETE FROM posts WHERE id=1');
+    assert.equal((await one('SELECT count(*) AS n FROM post_votes')).n, 0);
+    assert.ok(
+      (
+        await one(
+          'SELECT COUNT(*) AS n FROM information_schema.referential_constraints WHERE constraint_schema=DATABASE()',
+        )
+      ).n > 0,
+    );
   });
 } finally {
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (child.startsWith('techcare-discussion-') && !child.includes('..') && !isAbsolute(child))
     await rm(temporary, { recursive: true, force: true });

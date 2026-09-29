@@ -1913,6 +1913,15 @@ main {
   align-items: flex-start;
   margin-top: 20px;
 }
+.google-sign-in {
+  width: 100%;
+}
+.auth-divider {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
 .auth-links p {
   font-size: 12px;
   margin: 0;

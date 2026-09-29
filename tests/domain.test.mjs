@@ -5,11 +5,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import sharp from 'sharp';
 import nodemailer from 'nodemailer';
-import { handle } from '../src/lib/server/api.mjs';
+import { handle } from '../src/app/api/handlers.mjs';
 import { all, one, run, now, closeDatabases, transaction } from '../src/lib/server/db.mjs';
 import { passwordHash, passwordOK, assertConfig } from '../src/lib/server/auth.mjs';
+import { initializeTestDatabase } from './mysql-test-db.mjs';
 const directory = await mkdtemp(join(tmpdir(), 'techcare-test-'));
-process.env.TECHCARE_DATA_DIR = directory;
+process.env.TECHCARE_MEDIA_DIR = directory;
+const cleanupDatabase = await initializeTestDatabase();
 process.env.TECHCARE_DEV_VERIFY = '1';
 process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3000';
 const origin = process.env.TECHCARE_ORIGIN;
@@ -84,7 +86,7 @@ try {
         aid = session.data.user.id;
         assert.match(session.headers.get('set-cookie'), /HttpOnly/);
         assert.match(session.headers.get('set-cookie'), /SameSite=Lax/);
-        run("UPDATE users SET role='admin' WHERE id=?", aid);
+        await run("UPDATE users SET role='admin' WHERE id=?", aid);
       },
     );
     await t.test(
@@ -106,14 +108,14 @@ try {
             400,
           );
         assert.equal((await call(b, 'verify', { email: 'bea@example.test', code })).status, 400);
-        run(
+        await run(
           'UPDATE email_verifications SET last_sent=last_sent-61 WHERE user_id=(SELECT id FROM users WHERE email=?)',
           'bea@example.test',
         );
         const resend = await call(b, 'resend-verification', { email: 'bea@example.test' });
         assert.equal(resend.status, 200);
         assert.equal((await call(b, 'verify', { email: 'bea@example.test', code })).status, 400);
-        run(
+        await run(
           'UPDATE email_verifications SET code_hash=? WHERE user_id=(SELECT id FROM users WHERE email=?)',
           passwordHash('001234'),
           'bea@example.test',
@@ -128,7 +130,7 @@ try {
     await t.test('expired verification is rejected', async () => {
       const temp = client(),
         code = await register(temp, 'Expired Test', 'expired@example.test');
-      run(
+      await run(
         'UPDATE email_verifications SET expires=? WHERE user_id=(SELECT id FROM users WHERE email=?)',
         now() - 1,
         'expired@example.test',
@@ -152,7 +154,10 @@ try {
           ).status,
           503,
         );
-        assert.equal(one('SELECT id FROM users WHERE email=?', 'nomail@example.test'), undefined);
+        assert.equal(
+          await one('SELECT id FROM users WHERE email=?', 'nomail@example.test'),
+          undefined,
+        );
         process.env.TECHCARE_DEV_VERIFY = '1';
         const r = await call(
           guest,
@@ -220,7 +225,7 @@ try {
             503,
           );
           assert.equal(
-            one('SELECT id FROM users WHERE email=?', 'failedmail@example.test'),
+            await one('SELECT id FROM users WHERE email=?', 'failedmail@example.test'),
             undefined,
           );
         } finally {
@@ -275,7 +280,7 @@ try {
           ).status,
           400,
         );
-        assert.equal(one('SELECT status FROM posts WHERE id=?', postId).status, 'pending');
+        assert.equal((await one('SELECT status FROM posts WHERE id=?', postId)).status, 'pending');
         const decisions = await Promise.all([
           call(a, 'moderate', {
             kind: 'post',
@@ -291,8 +296,14 @@ try {
           }),
         ]);
         assert.deepEqual(decisions.map((r) => r.status).sort(), [200, 409]);
-        assert.equal(one('SELECT count(*) AS n FROM comments WHERE post_id=?', postId).n, 1);
-        assert.equal(one("SELECT count(*) AS n FROM audit WHERE action='approve-and-answer'").n, 1);
+        assert.equal(
+          (await one('SELECT count(*) AS n FROM comments WHERE post_id=?', postId)).n,
+          1,
+        );
+        assert.equal(
+          (await one("SELECT count(*) AS n FROM audit WHERE action='approve-and-answer'")).n,
+          1,
+        );
         assert.equal((await call(guest, `comments?post=${postId}`)).data.comments[0].role, 'admin');
       },
     );
@@ -304,8 +315,8 @@ try {
           category: 'General',
         })
       ).data.id;
-      run(
-        "CREATE TRIGGER fail_answer BEFORE INSERT ON comments WHEN NEW.body='forced rollback' BEGIN SELECT RAISE(ABORT,'test failure'); END",
+      await run(
+        "CREATE TRIGGER fail_answer BEFORE INSERT ON comments FOR EACH ROW BEGIN IF NEW.body='forced rollback' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test failure'; END IF; END",
       );
       assert.equal(
         (
@@ -318,8 +329,8 @@ try {
         ).status,
         500,
       );
-      assert.equal(one('SELECT status FROM posts WHERE id=?', q).status, 'pending');
-      run('DROP TRIGGER fail_answer');
+      assert.equal((await one('SELECT status FROM posts WHERE id=?', q)).status, 'pending');
+      await run('DROP TRIGGER fail_answer');
       assert.equal(
         (await call(a, 'moderate', { kind: 'post', id: q, status: 'rejected' })).status,
         200,
@@ -498,7 +509,7 @@ try {
           photo,
         };
         assert.equal((await call(guest, 'posts', question)).status, 401);
-        const count = one('SELECT count(*) AS n FROM posts').n;
+        const count = (await one('SELECT count(*) AS n FROM posts')).n;
         for (const invalid of [
           'data:image/svg+xml;base64,PHN2Zz4=',
           'data:image/png;base64,YmFk',
@@ -507,11 +518,11 @@ try {
         ]) {
           assert.equal((await call(b, 'posts', { ...question, photo: invalid })).status, 400);
         }
-        assert.equal(one('SELECT count(*) AS n FROM posts').n, count);
+        assert.equal((await one('SELECT count(*) AS n FROM posts')).n, count);
         const submitted = await call(b, 'posts', question);
         assert.equal(submitted.status, 201);
         const id = submitted.data.id;
-        const saved = one('SELECT photo FROM posts WHERE id=?', id).photo;
+        const saved = (await one('SELECT photo FROM posts WHERE id=?', id)).photo;
         const route = saved.replace('/api/', '');
         assert.equal((await call(guest, route)).status, 403);
         assert.equal((await call(c, route)).status, 403);
@@ -532,29 +543,28 @@ try {
         assert.equal(metadata.exif, undefined);
         assert.equal((await call(guest, 'posts')).data.posts.find((p) => p.id === id).photo, saved);
         // A saved URL must re-check current visibility rather than cache publication.
-        run("UPDATE posts SET status='rejected' WHERE id=?", id);
+        await run("UPDATE posts SET status='rejected' WHERE id=?", id);
         assert.equal((await call(guest, route)).status, 403);
         assert.equal((await call(b, route)).status, 200);
         const pending = (await call(b, 'posts', question)).data.id;
-        const pendingRoute = one('SELECT photo FROM posts WHERE id=?', pending).photo.replace(
-          '/api/',
-          '',
-        );
+        const pendingRoute = (
+          await one('SELECT photo FROM posts WHERE id=?', pending)
+        ).photo.replace('/api/', '');
         assert.equal(
           (await call(a, 'moderate', { kind: 'post', id: pending, status: 'rejected' })).status,
           200,
         );
         assert.equal((await call(guest, pendingRoute)).status, 403);
-        const mediaBefore = one('SELECT count(*) AS n FROM media').n;
-        run(
-          "CREATE TRIGGER fail_photo_post BEFORE INSERT ON posts WHEN NEW.title='Photo of a laptop problem' BEGIN SELECT RAISE(ABORT, 'synthetic failure'); END",
+        const mediaBefore = (await one('SELECT count(*) AS n FROM media')).n;
+        await run(
+          "CREATE TRIGGER fail_photo_post BEFORE INSERT ON posts FOR EACH ROW BEGIN IF NEW.title='Photo of a laptop problem' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='synthetic failure'; END IF; END",
         );
         try {
           assert.equal((await call(b, 'posts', question)).status, 500);
         } finally {
-          run('DROP TRIGGER fail_photo_post');
+          await run('DROP TRIGGER fail_photo_post');
         }
-        assert.equal(one('SELECT count(*) AS n FROM media').n, mediaBefore);
+        assert.equal((await one('SELECT count(*) AS n FROM media')).n, mediaBefore);
       },
     );
     await t.test(
@@ -581,8 +591,8 @@ try {
           call(b, 'friend', { user_id: aid, action: 'request' }),
         ]);
         assert.deepEqual(requests.map((r) => r.status).sort(), [200, 409]);
-        const pair = one('SELECT * FROM friendships');
-        assert.equal(all('SELECT * FROM friendships').length, 1);
+        const pair = await one('SELECT * FROM friendships');
+        assert.equal((await all('SELECT * FROM friendships')).length, 1);
         const recipient = pair.receiver === bid ? b : a,
           target = pair.sender;
         assert.equal(
@@ -663,9 +673,9 @@ try {
         assert.equal((await call(c, 'queue')).status, 200);
         assert.equal((await call(a, 'admin/role', { id: cid, role: 'member' })).status, 200);
         assert.equal((await call(c, 'queue')).status, 403);
-        run("UPDATE users SET role='admin' WHERE id=?", cid);
+        await run("UPDATE users SET role='admin' WHERE id=?", cid);
         assert.equal((await call(a, 'admin/role', { id: cid, role: 'member' })).status, 403);
-        run("UPDATE users SET role='member' WHERE id=?", cid);
+        await run("UPDATE users SET role='member' WHERE id=?", cid);
       },
     );
     await t.test(
@@ -778,7 +788,7 @@ try {
         );
         await login(c, 'cam@example.test', newPassword);
         const r = await call(c, 'forgot-password', { email: 'cam@example.test' });
-        run('UPDATE password_resets SET expires=?', now() - 1);
+        await run('UPDATE password_resets SET expires=?', now() - 1);
         assert.equal(
           (await call(guest, 'reset-password', { token: r.data.development_token, password: pw }))
             .status,
@@ -797,14 +807,14 @@ try {
         await call(b, 'logout', {});
         assert.equal((await call(b, 'dashboard')).status, 401);
         await login(b, 'bea@example.test');
-        run('UPDATE sessions SET expires=? WHERE user_id=?', now() - 1, bid);
+        await run('UPDATE sessions SET expires=? WHERE user_id=?', now() - 1, bid);
         assert.equal((await call(b, 'dashboard')).status, 401);
       },
     );
     await t.test('published content paginates without exposing pending records', async () => {
-      transaction(() => {
+      await transaction(async () => {
         for (let i = 0; i < 24; i++)
-          run(
+          await run(
             "INSERT INTO posts(user_id,title,body,category,status,created) VALUES(?,?,?,'General','published',?)",
             aid,
             `Pagination question ${i}`,
@@ -832,7 +842,7 @@ try {
     );
   });
 } finally {
-  closeDatabases();
+  await cleanupDatabase();
   const relativePath = relative(resolve(tmpdir()), resolve(directory));
   if (
     relativePath.startsWith('techcare-test-') &&

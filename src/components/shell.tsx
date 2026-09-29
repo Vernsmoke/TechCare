@@ -24,7 +24,7 @@ import {
   Moon,
   Sun,
 } from '@phosphor-icons/react';
-import { api, Avatar, Field, Form, Modal, Success, TextArea, Select } from './ui';
+import { api, ApiError, Avatar, Field, Form, Modal, Success, TextArea, Select } from './ui';
 import type { User, Result, FormValues } from '@/lib/types';
 import { categories } from '@/lib/content';
 import { GuideAssistant } from './guide-assistant';
@@ -117,6 +117,25 @@ export function Shell({
     return () => {
       alive = false;
     };
+  }, []);
+  useEffect(() => {
+    const result = new URLSearchParams(window.location.search).get('google');
+    if (!result) return;
+    window.history.replaceState(
+      window.history.state,
+      '',
+      `${window.location.pathname}${window.location.hash}`,
+    );
+    const messages: Record<string, string> = {
+      success: 'You are signed in with Google.',
+      'email-in-use':
+        'A TechCare account already uses this email. Sign in with its existing method; accounts are not linked automatically.',
+      'not-configured':
+        'Google sign-in is not configured yet. Use email sign-in or try again later.',
+      failed: 'Google sign-in could not be completed. Please try again.',
+    };
+    if (result === 'email-in-use') setAuthMode('login');
+    setNotice(messages[result] || messages.failed);
   }, []);
   useEffect(() => {
     let alive = true;
@@ -581,7 +600,17 @@ function AuthDialog({
       forgot: 'forgot-password',
       reset: 'reset-password',
     }[mode];
-    const r = await api<Result>(route, values);
+    let r: Result;
+    try {
+      r = await api<Result>(route, values);
+    } catch (error) {
+      if (mode === 'login' && error instanceof ApiError && error.status === 403) {
+        setMode('verify');
+        setMessage(error.message);
+        return;
+      }
+      throw error;
+    }
     if (mode === 'login') {
       setUser(r.user!);
       close();
@@ -591,7 +620,9 @@ function AuthDialog({
     if (mode === 'register') {
       setCode(r.development_code || '');
       setMode('verify');
-      setMessage(r.message!);
+      setMessage(
+        `A six-digit verification code was sent to ${values.email}. It expires in 15 minutes.`,
+      );
     }
     if (mode === 'verify') {
       setMode('login');
@@ -625,16 +656,15 @@ function AuthDialog({
     >
       {message && <Success>{message}</Success>}
       {classroom && (
-        <div className="demo-note">
-          Local classroom preview. Email ownership is not verified in this mode.
-          {code && <strong> Demo code: {code}</strong>}
-          {token && (
-            <>
-              <br />
-              Recovery token: <code className="break-token">{token}</code>
-            </>
-          )}
-        </div>
+      <div></div>
+      )}
+      {['login', 'register'].includes(mode) && (
+        <>
+          <a className="button secondary google-sign-in" href="/api/auth/google">
+            Continue with Google
+          </a>
+          <p className="auth-divider">or continue with email</p>
+        </>
       )}
       <Form
         key={mode}
@@ -673,15 +703,22 @@ function AuthDialog({
           />
         )}
         {mode === 'verify' && (
-          <Field
-            label="Six-digit code"
-            name="code"
-            inputMode="numeric"
-            pattern="[0-9]{6}"
-            min={6}
-            max={6}
-            autoComplete="one-time-code"
-          />
+          <>
+            <Field
+              label="Six-digit code"
+              name="code"
+              inputMode="numeric"
+              pattern="[0-9]{6}"
+              min={6}
+              max={6}
+              autoComplete="one-time-code"
+              placeholder="000000"
+            />
+            <p className="form-hint">
+              Enter the code sent to this email address. Codes expire after 15 minutes; use “Send a
+              new code” if yours has expired.
+            </p>
+          </>
         )}
         {mode === 'reset' && (
           <Field

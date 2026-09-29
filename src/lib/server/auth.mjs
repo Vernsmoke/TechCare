@@ -1,3 +1,5 @@
+// Authentication and shared access rules used by the API/domain modules.
+// Store only token digests in MySQL so a database leak cannot replay sessions.
 import { randomBytes, pbkdf2Sync, timingSafeEqual, createHash } from 'node:crypto';
 import { one, run, now } from './db.mjs';
 
@@ -30,7 +32,7 @@ export function passwordOK(password, encoded) {
     return false;
   }
 }
-export function currentUser(request) {
+export async function currentUser(request) {
   const token = request.headers.get('cookie')?.match(/(?:^|;\s*)techcare=([^;]+)/)?.[1];
   return token
     ? one(
@@ -51,18 +53,18 @@ export function ownUser(u) {
   const { id, name, email, role, bio, avatar, visibility } = u;
   return { id, name, email, role, bio, avatar, visibility };
 }
-export function blocked(a, b) {
-  return !!one(
+export async function blocked(a, b) {
+  return !!(await one(
     'SELECT 1 FROM blocks WHERE (blocker=? AND blocked=?) OR (blocker=? AND blocked=?)',
     a,
     b,
     b,
     a,
-  );
+  ));
 }
-export function relationship(a, b) {
-  if (!a || a === b || blocked(a, b)) return 'none';
-  const r = one(
+export async function relationship(a, b) {
+  if (!a || a === b || (await blocked(a, b))) return 'none';
+  const r = await one(
     'SELECT * FROM friendships WHERE (sender=? AND receiver=?) OR (sender=? AND receiver=?)',
     a,
     b,
@@ -77,11 +79,12 @@ export function relationship(a, b) {
         ? 'outgoing'
         : 'incoming';
 }
-export function member(u, viewer) {
-  const friendship = relationship(viewer?.id, u.id);
+export async function member(u, viewer) {
+  const friendship = await relationship(viewer?.id, u.id);
   const visible =
     viewer?.id === u.id ||
-    (!blocked(viewer?.id || 0, u.id) && (u.visibility === 'public' || friendship === 'friends'));
+    (!(await blocked(viewer?.id || 0, u.id)) &&
+      (u.visibility === 'public' || friendship === 'friends'));
   return {
     id: u.id,
     name: u.name,
@@ -91,32 +94,33 @@ export function member(u, viewer) {
     avatar: visible ? u.avatar : '',
     friendship,
     following: !!(
-      viewer && one('SELECT 1 FROM follows WHERE follower=? AND followed=?', viewer.id, u.id)
+      viewer &&
+      (await one('SELECT 1 FROM follows WHERE follower=? AND followed=?', viewer.id, u.id))
     ),
     blocked: !!(
-      viewer && one('SELECT 1 FROM blocks WHERE blocker=? AND blocked=?', viewer.id, u.id)
+      viewer && (await one('SELECT 1 FROM blocks WHERE blocker=? AND blocked=?', viewer.id, u.id))
     ),
   };
 }
-export function friendAccess(user, target) {
+export async function friendAccess(user, target) {
   requireUser(user);
-  if (relationship(user.id, target) !== 'friends')
+  if ((await relationship(user.id, target)) !== 'friends')
     throw new Problem(
       'Messages require a current mutual friendship. This conversation is unavailable.',
       403,
     );
 }
-export function throttle(key, limit, seconds) {
+export async function throttle(key, limit, seconds) {
   const time = now();
-  run('DELETE FROM rate_limits WHERE expires<=?', time);
-  const r = one('SELECT * FROM rate_limits WHERE key=?', key);
+  await run('DELETE FROM rate_limits WHERE expires<=?', time);
+  const r = await one('SELECT * FROM rate_limits WHERE `key`=?', key);
   if (r && r.count >= limit)
     throw new Problem(
       `Too many attempts. Try again in ${Math.max(1, r.expires - time)} seconds.`,
       429,
     );
-  run(
-    'INSERT INTO rate_limits VALUES(?,1,?) ON CONFLICT(key) DO UPDATE SET count=count+1',
+  await run(
+    'INSERT INTO rate_limits(`key`,count,expires) VALUES(?,1,?) ON DUPLICATE KEY UPDATE count=count+1',
     key,
     time + seconds,
   );
@@ -126,6 +130,8 @@ export function assertConfig() {
     throw new Error('Classroom verification must be disabled in production.');
 }
 export function demoMode(request) {
+  // Development codes are deliberately restricted to direct local requests;
+  // production must use real email verification instead.
   assertConfig();
   return (
     process.env.TECHCARE_DEV_VERIFY === '1' &&
@@ -136,5 +142,6 @@ export function demoMode(request) {
   );
 }
 export function cookie(token, expire = false) {
+  // CHANGE FOR YOUR DEPLOYMENT: serve HTTPS and set TECHCARE_SECURE_COOKIES=1.
   return `techcare=${token}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${expire ? 0 : 604800}${process.env.TECHCARE_SECURE_COOKIES === '1' ? '; Secure' : ''}`;
 }

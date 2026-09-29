@@ -7,19 +7,21 @@ import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import { passwordHash } from '../src/lib/server/auth.mjs';
 import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { initializeTestDatabase } from '../tests/mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-content-browser-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 const origin = 'http://127.0.0.1:3016',
   password = 'Synthetic-content-check-2026';
-run(
+await run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
   'Content QA',
   'content-qa@example.test',
   passwordHash(password),
   now(),
 );
-closeDatabases();
+await closeDatabases();
 const server = spawn(
   process.execPath,
   ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3016'],
@@ -214,7 +216,7 @@ try {
     server.kill();
     await new Promise((resolve) => server.once('exit', resolve));
   }
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (child.startsWith('techcare-content-browser-') && !child.includes('..') && !isAbsolute(child))
     await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 200 });

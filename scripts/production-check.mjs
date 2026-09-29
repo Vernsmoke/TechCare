@@ -15,7 +15,7 @@ const server = spawn(
       NODE_ENV: 'production',
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_ORIGIN: origin,
-      TECHCARE_DATA_DIR: temporary,
+      TECHCARE_MEDIA_DIR: temporary,
       TECHCARE_BUILD_DIR: '.next-production',
     },
     stdio: 'ignore',

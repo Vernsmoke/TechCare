@@ -4,12 +4,14 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import sharp from 'sharp';
-import { handle } from '../src/lib/server/api.mjs';
+import { handle } from '../src/app/api/handlers.mjs';
 import { run, all, one, now, closeDatabases } from '../src/lib/server/db.mjs';
 import { passwordHash } from '../src/lib/server/auth.mjs';
+import { initializeTestDatabase } from './mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-announcements-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3014');
 const password = 'Announcement-test-password';
@@ -53,7 +55,7 @@ try {
   const sessions = {};
   const hash = passwordHash(password);
   for (const role of ['admin', 'moderator', 'member']) {
-    run(
+    await run(
       'INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,?,1,?)',
       role,
       `${role}@example.test`,
@@ -106,7 +108,7 @@ try {
     assert.equal((await call(first.image.slice(5))).status, 200);
   });
   await test('edits reject stale revisions and validate text, date, link, and images without leaking uploads', async () => {
-    const before = one('SELECT count(*) AS n FROM media').n;
+    const before = (await one('SELECT count(*) AS n FROM media')).n;
     for (const bad of [
       { title: 'x' },
       { alt: '' },
@@ -119,7 +121,7 @@ try {
     ]) {
       assert.equal((await call('admin/announcements', { ...fields, ...bad }, admin)).status, 400);
     }
-    assert.equal(one('SELECT count(*) AS n FROM media').n, before);
+    assert.equal((await one('SELECT count(*) AS n FROM media')).n, before);
     assert.equal(
       (await call('admin/announcements', { ...fields, id: first.id, revision: 1 }, admin)).status,
       409,
@@ -188,20 +190,20 @@ try {
     );
     assert.equal((await call(first.image.slice(5))).status, 403);
     first = (await list())[1];
-    closeDatabases();
+    await closeDatabases();
     assert.deepEqual(
       (await list()).map((item) => item.id),
       [second.id, first.id],
     );
   });
   await test('failed database saves clean up uploads; deletion removes only announcement media', async () => {
-    const before = one('SELECT count(*) AS n FROM media').n;
-    run(
-      "CREATE TRIGGER block_announcements BEFORE INSERT ON announcements BEGIN SELECT RAISE(ABORT,'test failure'); END",
+    const before = (await one('SELECT count(*) AS n FROM media')).n;
+    await run(
+      "CREATE TRIGGER block_announcements BEFORE INSERT ON announcements FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='test failure'",
     );
     assert.notEqual((await call('admin/announcements', fields, admin)).status, 200);
-    run('DROP TRIGGER block_announcements');
-    assert.equal(one('SELECT count(*) AS n FROM media').n, before);
+    await run('DROP TRIGGER block_announcements');
+    assert.equal((await one('SELECT count(*) AS n FROM media')).n, before);
     for (const item of await list()) {
       assert.equal(
         (
@@ -216,8 +218,8 @@ try {
       assert.equal((await call(item.image.slice(5), null, admin)).status, 404);
     }
     assert.deepEqual((await call('announcements')).data.announcements, []);
-    assert.equal(one("SELECT count(*) AS n FROM media WHERE access='announcement'").n, 0);
-    assert.equal(all("SELECT * FROM audit WHERE kind='announcement'").length > 0, true);
+    assert.equal((await one("SELECT count(*) AS n FROM media WHERE access='announcement'")).n, 0);
+    assert.equal((await all("SELECT * FROM audit WHERE kind='announcement'")).length > 0, true);
   });
   await test('campus presets are allowlisted, replace uploads safely, and remain reusable after deletion', async () => {
     assert.equal(
@@ -279,7 +281,7 @@ try {
     assert.match((await list())[0].image, /^\/api\/media\//);
   });
 } finally {
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (child.startsWith('techcare-announcements-') && !child.includes('..') && !isAbsolute(child))
     await rm(temporary, { recursive: true, force: true });

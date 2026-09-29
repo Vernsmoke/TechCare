@@ -4,13 +4,15 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import sharp from 'sharp';
-import { handle } from '../src/lib/server/api.mjs';
+import { handle } from '../src/app/api/handlers.mjs';
 import { run, one, now, closeDatabases } from '../src/lib/server/db.mjs';
 import { passwordHash } from '../src/lib/server/auth.mjs';
 import { guides, defaultBooth } from '../src/lib/content-defaults.mjs';
+import { initializeTestDatabase } from './mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-content-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3015');
 const password = 'Content-test-password';
@@ -67,7 +69,7 @@ try {
   const sessions = {},
     hash = passwordHash(password);
   for (const role of ['admin', 'moderator', 'member']) {
-    run(
+    await run(
       'INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,?,1,?)',
       role,
       `${role}@example.test`,
@@ -106,9 +108,8 @@ try {
           );
       }
     }
-    closeDatabases();
+    await closeDatabases();
     assert.equal((await list('guides')).length, 4);
-    assert.equal(one('SELECT count(*) AS n FROM migrations WHERE version=4').n, 1);
   });
   await test('guide creation, editing, publishing, conflict protection, hiding and deletion persist', async () => {
     const created = await save('guides', guideFields);
@@ -145,7 +146,7 @@ try {
       false,
     );
     assert.equal((await save('guides', { ...row, action: 'delete' })).status, 200);
-    closeDatabases();
+    await closeDatabases();
     assert.equal(
       (await list('guides')).some((item) => item.id === row.id),
       false,
@@ -264,17 +265,17 @@ try {
     );
   });
   await test('failed saves roll back content and clean up new uploads', async () => {
-    const count = one('SELECT count(*) AS n FROM media').n;
-    run(
-      "CREATE TRIGGER reject_managed_audit BEFORE INSERT ON audit WHEN NEW.kind='booths' BEGIN SELECT RAISE(ABORT,'forced test failure'); END",
+    const count = (await one('SELECT count(*) AS n FROM media')).n;
+    await run(
+      "CREATE TRIGGER reject_managed_audit BEFORE INSERT ON audit FOR EACH ROW BEGIN IF NEW.kind='booths' THEN SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT='forced test failure'; END IF; END",
     );
     assert.equal((await save('booths', { ...boothFields, file: image })).status, 500);
-    run('DROP TRIGGER reject_managed_audit');
-    assert.equal(one('SELECT count(*) AS n FROM media').n, count);
+    await run('DROP TRIGGER reject_managed_audit');
+    assert.equal((await one('SELECT count(*) AS n FROM media')).n, count);
     assert.equal((await list('booths')).length, 1);
   });
 } finally {
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (child.startsWith('techcare-content-') && !child.includes('..') && !isAbsolute(child))
     await rm(temporary, { recursive: true, force: true });

@@ -4,9 +4,9 @@ Date: 2026-09-25. Status: local pilot implementation.
 
 ## Architecture
 
-Next.js owns the interface and backend. There is no Python server dependency in the new app. App Router pages use a shared persistent client shell, with server-rendered HTML and isolated interactive screens. The backend is split into transport (`app/api`), domain orchestration (`lib/server/api.mjs`), validation, authentication/privacy, persistence, mail, and media.
+Next.js owns the interface and backend. There is no Python server dependency in the new app. App Router pages use a shared persistent client shell, with server-rendered HTML and isolated interactive screens. API request handling lives in `src/app/api/handlers.mjs`; shared database, authentication/privacy, validation, feature workflows, email, and media helpers live as flat modules in `src/lib/server/`.
 
-SQLite is retained for the single-node pilot through Node 24's built-in SQLite API. A migration to IT-managed PostgreSQL is still required before the specified public multi-worker/scaled deployment. IDs, timestamps, the original password-hash format, and core relationships remain compatible. New passwords use PBKDF2-SHA256 with 600,000 iterations; the verifier accepts the original 310,000 iteration format. Passwords allow 12 to 128 characters without trimming.
+The application now uses MySQL through `mysql2`; import `database.sql` into MySQL Workbench and configure `TECHCARE_DB_*` before running it. Upload metadata is in MySQL, while media files remain on local disk. Importing the schema does not migrate the old SQLite pilot data. IDs, timestamps, the original password-hash format, and core relationships remain compatible. New passwords use PBKDF2-SHA256 with 600,000 iterations; the verifier accepts the original 310,000 iteration format. Passwords allow 12 to 128 characters without trimming.
 
 JSON endpoint names and principal fields are retained. API responses still use `error` for errors. Status codes now distinguish authentication (401), authorization (403), missing content (404), stale decisions/conflicts (409), oversize requests (413), throttling (429), and unavailable mail/video processing (503). Updated UI and tests use these distinctions together.
 
@@ -52,8 +52,8 @@ The shell replaces the reference single-document page switching with bookmarkabl
 | `src/app/api/[...path]/route.ts`                 | Next Node-runtime API transport                                                 |
 | `src/proxy.ts`, `next.config.mjs`                | HTML nonce and response security headers                                        |
 | `scripts/create-admin.mjs`, `scripts/start.mjs`  | Operator bootstrap and guarded production startup                               |
-| `scripts/migrate-legacy.mjs`                     | Explicit copy-based legacy migration                                            |
-| `tests/`                                         | Isolated API and migration acceptance tests                                     |
-| `scripts/workflow-check.mjs`                     | Full browser workflows in isolated temporary data                               |
+| `database.sql`                                   | MySQL schema, indexes, constraints, and initial public content                  |
+| `tests/`                                         | API, content, discussion, and MySQL schema acceptance tests                     |
+| `scripts/workflow-check.mjs`                     | Full browser workflows against an isolated test database                        |
 
 No external analytics, AI services, cloud accounts, notifications, bookings, repair tickets, payments, or real-time chat infrastructure was added.

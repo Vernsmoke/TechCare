@@ -1,3 +1,5 @@
+// Central request validation. Use these helpers at the API boundary so values
+// are checked consistently even when callers bypass the browser UI.
 import { Problem } from './auth.mjs';
 export const categories = [
   'General',

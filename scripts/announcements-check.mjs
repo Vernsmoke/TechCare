@@ -6,17 +6,19 @@ import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute, resolve } from 'node:path';
 import { passwordHash } from '../src/lib/server/auth.mjs';
 import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { initializeTestDatabase } from '../tests/mysql-test-db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-announcement-browser-'));
-process.env.TECHCARE_DATA_DIR = temporary;
+process.env.TECHCARE_MEDIA_DIR = temporary;
+const cleanupDatabase = await initializeTestDatabase();
 const origin = 'http://127.0.0.1:3014';
 const password = 'Announcement-browser-check-2026';
-run(
+await run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES('QA Admin','announcements@example.test',?,'admin',1,?)",
   passwordHash(password),
   now(),
 );
-closeDatabases();
+await closeDatabases();
 await mkdir('artifacts', { recursive: true });
 const server = spawn(
   process.execPath,
@@ -25,7 +27,7 @@ const server = spawn(
     env: {
       ...process.env,
       NODE_ENV: 'production',
-      TECHCARE_DATA_DIR: temporary,
+      TECHCARE_MEDIA_DIR: temporary,
       TECHCARE_ORIGIN: origin,
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_BUILD_DIR: '.next-production',
@@ -294,7 +296,7 @@ try {
     server.kill();
     await exited;
   }
-  closeDatabases();
+  await cleanupDatabase();
   const child = relative(tmpdir(), temporary);
   if (
     child.startsWith('techcare-announcement-browser-') &&

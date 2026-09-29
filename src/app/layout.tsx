@@ -19,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   await connection();
   const cookieStore = await cookies();
   const theme = cookieStore.get('techcare-theme')?.value === 'dark' ? 'dark' : 'light';
-  const logo = one("SELECT value FROM settings WHERE key='logo'")?.value || '';
+  const logo = (await one("SELECT `value` FROM settings WHERE `key`='logo'"))?.value || '';
   return (
     <html lang="en" data-theme={theme}>
       <body>

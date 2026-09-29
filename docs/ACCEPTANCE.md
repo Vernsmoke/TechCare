@@ -1,6 +1,9 @@
 # Build acceptance report
 
-Executed 2026-09-25 in the new TechCare workspace on Windows, Node.js 24.19.0, Next.js 16.3.6, React 19.3.0. The repository has no application commit yet; this report applies to the current working tree. Tests use synthetic identities and isolated temporary SQLite databases.
+> Historical report for the SQLite-based build on 2026-09-25. It does not
+> validate the later MySQL backend conversion or its import schema.
+
+Executed 2026-09-25 in the new TechCare workspace on Windows, Node.js 24.19.0, Next.js 16.3.6, React 19.3.0. Tests at that time used synthetic identities and isolated temporary SQLite databases.
 
 ## Results
 

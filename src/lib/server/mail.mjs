@@ -1,7 +1,11 @@
+// SMTP adapter for account verification and recovery. Configure credentials
+// through environment variables; callers receive a service error if SMTP is absent.
 import nodemailer from 'nodemailer';
 import { Problem } from './auth.mjs';
 export async function sendMail(to, subject, text, demo) {
   if (demo) return;
+  // CHANGE FOR YOUR DEPLOYMENT: configure TECHCARE_SMTP_* or replace this
+  // adapter with the email provider approved for your project.
   if (!process.env.TECHCARE_SMTP_HOST || !process.env.TECHCARE_SMTP_FROM)
     throw new Problem('Email delivery is not configured. Please contact the project team.', 503);
   const transport = nodemailer.createTransport({

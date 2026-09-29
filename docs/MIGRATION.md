@@ -1,33 +1,49 @@
-# Migration and rollback
+# Database setup and migration
 
-## Existing Next.js pilot databases
+## New MySQL installation
 
-On the next app startup, schema migration 2 adds an optional `posts.photo` field and expands the media access classification to include moderated question photos. It runs transactionally, preserving existing post IDs, content, users, and media rows. Existing posts remain photo-free. As with any schema update, back up the complete stopped data directory before deploying to another instance. Unversioned Python databases still require the explicit copy migration below.
+1. Install and start MySQL Server 8.0.16 or later.
+2. Import [`database.sql`](../database.sql) using MySQL Workbench. It creates
+   the `techcare` database, all application tables/indexes, and starter
+   resources, guides, and booth content.
+3. Set `TECHCARE_DB_HOST`, `TECHCARE_DB_PORT`, `TECHCARE_DB_NAME`,
+   `TECHCARE_DB_USER`, and `TECHCARE_DB_PASSWORD` in `.env.local`.
+4. Create the administrator with `npm run create-admin`.
+5. Start the app and verify the configured SMTP/local verification mode.
 
-No real source database has been moved, changed, or adopted. The new preview uses its own ignored `data/` directory. An unversioned legacy database is refused by application startup rather than silently inheriting trust decisions.
+The schema script uses `CREATE TABLE IF NOT EXISTS`; it is for initialization,
+not an upgrade mechanism. Add future schema changes to a versioned migration
+script before applying them to an already-used database.
 
-## Legacy migration
+## Google OAuth accounts
 
-1. Stop the source application. Make an operator backup of its database **and media**, with restricted access. Database snapshotting alone cannot make concurrent media changes consistent.
-2. Pick a new, nonexistent destination directory. Do not point this at the active preview database.
-3. Explicitly choose the verification policy. `preserve` carries recorded `verified` values forward only when that column exists; `reset` marks every account unverified and creates expired challenges that can be resumed through Verify a pending account and Send a new code. The latter includes administrators, who will need approved email delivery to reverify.
-4. Run the migration:
+New installations receive the `oauth_accounts` table from `database.sql`.
+For an existing MySQL installation, execute
+[`database/migrations/001-oauth-accounts.sql`](../database/migrations/001-oauth-accounts.sql)
+against the application's database before enabling Google sign-in.
 
-```powershell
-node scripts/migrate-legacy.mjs --source 'C:\path\old-data' --dest 'C:\path\new-data' --verification reset --source-stopped
-```
+Configure `TECHCARE_GOOGLE_CLIENT_ID`, `TECHCARE_GOOGLE_CLIENT_SECRET`, and
+`TECHCARE_GOOGLE_REDIRECT_URI` on the server. Register the exact redirect URI
+in the Google Cloud OAuth client configuration. Use HTTPS in production; HTTP
+is allowed only for localhost development. Existing TechCare accounts are not
+automatically linked to Google accounts with the same email.
 
-The helper uses SQLite's backup API to create a copy, preserves IDs/content/password hashes, merges inverse friendship duplicates into one logical pair (accepted if either pair was accepted), applies supporting tables/indexes, revokes old sessions, and validates/re-encodes referenced images into authorized media storage. No live database is deleted. Referenced legacy videos require `TECHCARE_FFPROBE`; malformed legacy media causes migration to stop rather than accepting the old signature-only validation.
+## Existing SQLite pilot data
 
-The output directory is published only after the migration finishes and a count report is written. A failed migration leaves a clearly named `.migrating-<uuid>` sibling for operator inspection; it must not be used as application data and may contain private data. Remove it only after checking the path and deciding no recovery information is needed.
+The application has switched to MySQL. Importing `database.sql` creates a clean
+database and does **not** copy account records, messages, content edits, media
+metadata, or uploads from the previous SQLite pilot. Keep the previous SQLite
+database and media folder backed up until you decide how to handle that data.
+Do not point the MySQL application at an existing SQLite data directory.
 
-5. Inspect `migration-report.json`, foreign keys, account counts, content, and relationships. Use synthetic staging checks before adopting any real database. The new schema adds checks for fresh tables; legacy table constraints are not rebuilt wholesale, so direct operator writes still require care.
-6. Set `TECHCARE_DATA_DIR` to the new directory, configure mail, restart, and rerun acceptance checks with approved test identities. Keep the old app and its source data intact for rollback.
+No automatic SQLite-to-MySQL migration tool is included in this change.
+Transferring real accounts or user-generated content requires a separately
+reviewed migration plan, including verification status, password compatibility,
+foreign-key ordering, file paths, and media access/privacy checks.
 
-## Backup, restore, and rollback
+## Backups
 
-For the pilot, stop the app before taking a consistent copy of its complete data directory. For a live database snapshot, use the supported SQLite backup API and coordinate media quiescence; do not blindly copy an active SQLite file without its transactional state. Encrypt/restrict backups and maintain a separate copy under the eventual service owner's approved retention policy.
-
-Restore into a new directory, not over active data. Point a restricted test instance at it and verify sign-in, profiles, protected media, relationships, discussion publication, and message permissions. No live restore has been demonstrated in this task. Synthetic migration tests demonstrate that the original source remains byte-for-byte unchanged and that stable IDs, password compatibility, media classification, content, and logical relationships survive a copy migration.
-
-Rollback before cutover is simply continuing to use the unchanged original. After new writes, rollback requires reconciliation of those writes; switching back to the old snapshot without reconciliation would lose them. Keep both copies and document the cutover timestamp. Never casually roll back to the legacy server on a public network because its known privacy/security gaps remain.
+Back up MySQL with a supported MySQL dump or managed database snapshot and
+include the separate media directory configured by `TECHCARE_MEDIA_DIR`.
+Restrict and encrypt backups. Test restores into a separate database and media
+directory before relying on them. Never restore over an active database.

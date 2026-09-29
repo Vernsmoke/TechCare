@@ -21,7 +21,7 @@ try {
   const pw = password(await input.question(''));
   muted = false;
   process.stdout.write('\n');
-  run(
+  await run(
     "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
     name,
     address,
@@ -35,5 +35,5 @@ try {
 } finally {
   muted = false;
   input.close();
-  closeDatabases();
+  await closeDatabases();
 }
