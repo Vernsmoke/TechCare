@@ -8,9 +8,10 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/start.mjs",
     "typecheck": "tsc --project frontend/tsconfig.json --noEmit",
-    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs tests/community-media.test.mjs tests/community-updates.test.mjs",
+    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs tests/community-media.test.mjs tests/community-updates.test.mjs tests/client-api.test.mjs",
     "test:browser": "node scripts/workflow-check.mjs",
     "test:production": "node scripts/production-check.mjs",
+    "test:optimization": "node scripts/optimization-check.mjs",
     "create-admin": "node scripts/create-admin.mjs",
     "test:content": "npm run build && node scripts/content-management-check.mjs",
     "test:discussion": "npm run build && node scripts/discussion-check.mjs"

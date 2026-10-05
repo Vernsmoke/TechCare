@@ -33,11 +33,14 @@ npm test
 npm run build
 npm run typecheck
 npm run test:production
+npm run test:optimization
 ```
 
 The production browser check requires Microsoft Edge installed and port 3002 free. It creates a temporary test database and verifies the agreement flow, reload, navigation, public images, and browser errors. Build output is generated under `frontend/.next-production/`. Development uses Webpack for compatibility with this project's OneDrive-based Windows setup.
 
 Additional feature/browser scripts are available in `scripts/`. Some older scripts assume acceptance is remembered in the interface; the current interface asks again on every full load, so those scripts may need agreement steps before they can verify their feature.
+
+The optimization check also requires Edge and port 3024 free. It verifies deferred guide requests and admin settings with synthetic data. See [optimization results](OPTIMIZATION.md) for measured before/after results and scope.
 
 ## Local files and deployment
 

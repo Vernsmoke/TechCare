@@ -28,7 +28,8 @@ const welcome: Message = {
 
 export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
   const { version } = useTechCare();
-  const library = useData<{ guides: Guide[] }>('guides', version);
+  const [activated, setActivated] = useState(false);
+  const library = useData<{ guides: Guide[] }>(activated ? 'guides' : null, version);
   const guides = library.data?.guides || [];
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState('');
@@ -218,7 +219,13 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
         aria-expanded={open}
         aria-controls={open ? 'guide-assistant-panel' : undefined}
         aria-label={open ? 'Close guide assistant' : 'Open guide assistant'}
-        onClick={() => (open ? close() : setOpen(true))}
+        onClick={() => {
+          if (open) close();
+          else {
+            setActivated(true);
+            setOpen(true);
+          }
+        }}
       >
         {open ? <X size={25} /> : <ChatCircleDots size={24} weight="regular" />}
         <span>Need a hand?</span>

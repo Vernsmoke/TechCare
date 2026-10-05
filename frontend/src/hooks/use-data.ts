@@ -2,20 +2,29 @@
 import { useEffect, useState } from 'react';
 import { api } from '@/services/api';
 
-export function useData<T>(path: string, version = 0, pollMs = 0) {
+// A null path keeps optional UI from fetching before the user needs it.
+export function useData<T>(path: string | null, version = 0, pollMs = 0) {
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(''),
-    [loading, setLoading] = useState(true),
+    [loading, setLoading] = useState(path !== null),
     [retry, setRetry] = useState(0);
   useEffect(() => {
+    if (path === null) {
+      setData(null);
+      setError('');
+      setLoading(false);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setData(null);
     setError('');
     api<T>(path, undefined, controller.signal)
-      .then(setData)
+      .then((result) => {
+        if (!controller.signal.aborted) setData(result);
+      })
       .catch((e) => {
-        if (e.name !== 'AbortError') setError(e.message);
+        if (!controller.signal.aborted && e.name !== 'AbortError') setError(e.message);
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
@@ -23,7 +32,7 @@ export function useData<T>(path: string, version = 0, pollMs = 0) {
     return () => controller.abort();
   }, [path, version, retry]);
   useEffect(() => {
-    if (!pollMs) return;
+    if (path === null || !pollMs) return;
     let active = true;
     let running = false;
     const controller = new AbortController();

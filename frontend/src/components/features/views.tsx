@@ -1,10 +1,8 @@
 'use client';
 import { Privacy, Terms } from '../common/legal';
 import { QuestionImage } from '../common/question-photo';
-import { LogoSettings } from './logo-settings';
-import { ContentSettings } from './content-settings';
+import dynamic from 'next/dynamic';
 import { BoothContent } from './booth-content';
-import { AnnouncementSettings } from './announcement-settings';
 import Link from 'next/link';
 import { Suspense, useEffect, useState, type ReactNode } from 'react';
 import {
@@ -60,6 +58,25 @@ import type {
   Result,
   User,
 } from '@shared/types';
+
+const LogoSettings = dynamic(
+  () => import('./logo-settings').then((module) => module.LogoSettings),
+  {
+    loading: () => <Loading />,
+  },
+);
+const ContentSettings = dynamic(
+  () => import('./content-settings').then((module) => module.ContentSettings),
+  {
+    loading: () => <Loading />,
+  },
+);
+const AnnouncementSettings = dynamic(
+  () => import('./announcement-settings').then((module) => module.AnnouncementSettings),
+  {
+    loading: () => <Loading />,
+  },
+);
 
 export function View({ page }: { page: string }) {
   const views: Record<string, ReactNode> = {
