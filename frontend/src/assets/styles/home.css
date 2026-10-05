@@ -1,0 +1,241 @@
+/* Approved home preview. Keep controls on the shared .button system. */
+body:has(.community-home),
+body:has(.community-home) .campus-backdrop {
+  background: #eaf5ff;
+}
+body:has(.community-home) .campus-backdrop img {
+  visibility: hidden;
+}
+.campus-content.campus-home {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+}
+.community-home {
+  --ink: #101828;
+  --body: #394b63;
+  --muted: #52647c;
+  --background: #f5f8fc;
+  --line: #cedeed;
+  --blue-light: #e4f0ff;
+  --home-hero: #dcefff;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+:root[data-theme='dark'] body:has(.community-home),
+:root[data-theme='dark'] body:has(.community-home) .campus-backdrop {
+  background: #111c2b;
+}
+:root[data-theme='dark'] .community-home {
+  --surface: #182638;
+  --ink: #f3f7ff;
+  --body: #dae5f3;
+  --muted: #b7c7dc;
+  --background: #1d2e43;
+  --line: #3d526c;
+  --blue-light: #233f60;
+  --home-hero: #203a56;
+}
+.community-home .community-welcome {
+  padding: clamp(24px, 3vw, 44px);
+  margin-bottom: 24px;
+  border-radius: 18px;
+  background: var(--home-hero);
+  gap: 32px;
+}
+.community-home .community-welcome > div:first-child {
+  min-width: 0;
+}
+.community-home .community-eyebrow {
+  font-size: 16px;
+  font-weight: 750;
+}
+.community-home .community-welcome h1 {
+  max-width: 19ch;
+  font-size: clamp(34px, 3.8vw, 58px);
+  line-height: 1.12;
+  font-weight: 850;
+  letter-spacing: -0.045em;
+  margin-bottom: 18px;
+}
+.community-home .community-welcome p {
+  max-width: 58ch;
+  font-size: 18px;
+  line-height: 1.6;
+  font-weight: 500;
+}
+.community-home .welcome-actions {
+  gap: 12px;
+  min-width: 220px;
+}
+:root[data-theme] .community-home .welcome-actions .button {
+  min-height: 48px;
+  font-weight: 750;
+  white-space: normal;
+  box-shadow: var(--control-shadow);
+}
+.community-home .home-conversation-grid {
+  grid-template-columns: minmax(0, 1.7fr) minmax(300px, 1fr);
+  align-items: stretch;
+}
+.community-home
+  :is(.recent-discussions, .guides-section, .announcements, .booth-card, .community-note) {
+  padding: 28px;
+  border-radius: 12px;
+}
+.community-home .discussion-home-feature {
+  padding: 28px !important;
+}
+.community-home :is(.section-heading h2, .booth-card h2, .announcements-heading h2) {
+  font-size: 24px;
+  line-height: 1.35;
+  font-weight: 800;
+}
+.community-home .discussion-home-feature .section-heading {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+.community-home .discussion-home-feature .section-heading p {
+  font-size: 17px;
+}
+:root[data-theme] .community-home .community-link {
+  font-size: 17px;
+  font-weight: 750;
+}
+.community-home .discussion-preview {
+  display: grid;
+  gap: 12px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.community-home .discussion-preview-row,
+.community-home .discussion-preview-row:last-child {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) auto;
+  gap: 16px;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--background);
+}
+.community-home .discussion-preview-row > div {
+  min-width: 0;
+}
+.community-home :is(h2, h3, .discussion-preview-byline) {
+  overflow-wrap: anywhere;
+}
+.community-home .discussion-preview-row h3 {
+  font-size: 20px;
+  font-weight: 800;
+}
+.community-home .discussion-preview-row .avatar {
+  width: 44px;
+  height: 44px;
+  background: var(--blue-light);
+  color: var(--body);
+  font-weight: 750;
+}
+.community-home .discussion-preview-row .badge {
+  background: var(--blue-light);
+  color: var(--blue);
+  font-weight: 700;
+}
+.community-home .discussion-preview-row .discussion-preview-byline {
+  font-size: 14px;
+}
+.community-home .landing-announcements .announcements-heading h2 {
+  font-size: 24px;
+}
+.community-home .landing-announcements .announcement-copy {
+  padding: 18px 0 0;
+}
+.community-home .landing-announcements .announcement-copy h3 {
+  font-size: 22px;
+  font-weight: 800;
+}
+.community-home .landing-announcements .announcement-card {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 10px;
+}
+.community-home .guide-card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  align-content: start;
+  column-gap: 18px;
+  row-gap: 6px;
+  text-align: left;
+  padding: 24px;
+}
+.community-home .guide-icon {
+  grid-row: 1 / 4;
+  margin: 0;
+  align-self: center;
+}
+.community-home .guide-card h3 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+}
+.community-home .guide-card .home-guide-summary {
+  margin: 0;
+  max-width: none;
+  font-size: 16px;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.community-home .guide-meta {
+  grid-column: 2;
+  font-size: 14px;
+  margin-top: 4px;
+}
+@media (max-width: 1100px) {
+  .community-home .home-conversation-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .community-home .discussion-preview-row {
+    grid-template-columns: 44px minmax(0, 1fr) auto;
+  }
+}
+@media (max-width: 767px) {
+  .community-home .welcome-actions {
+    min-width: 0;
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .community-home .community-welcome {
+    padding: 24px;
+    gap: 24px;
+  }
+  .community-home .guide-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .community-home :is(.recent-discussions, .guides-section, .landing-announcements .announcements) {
+    padding: 20px;
+  }
+  .community-home .discussion-home-feature {
+    padding: 20px !important;
+  }
+  .community-home .discussion-preview-row,
+  .community-home .discussion-preview-row:last-child {
+    padding: 16px;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 12px;
+  }
+  .community-home .discussion-preview-row .avatar {
+    width: 32px;
+    height: 32px;
+  }
+  .community-home .discussion-preview-row .reply-count {
+    grid-column: 2;
+    justify-self: start;
+  }
+}

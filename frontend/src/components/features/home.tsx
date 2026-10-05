@@ -120,7 +120,7 @@ export function Home() {
                 event.currentTarget.open = false;
             }}
           >
-            <summary>
+            <summary className="button secondary">
               Explore TechCare <CaretDown size={17} aria-hidden="true" />
             </summary>
             <nav aria-label="Ways TechCare can help">
@@ -222,6 +222,7 @@ export function Home() {
                   <GuideIcon kind={g.icon} />
                 </span>
                 <h3>{g.title}</h3>
+                <p className="home-guide-summary">{g.summary}</p>
                 <span className="guide-meta">
                   {g.time}
                   <span className="action-link small">
