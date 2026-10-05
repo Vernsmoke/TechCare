@@ -1,11 +1,4 @@
 /* Approved home preview. Keep controls on the shared .button system. */
-body:has(.community-home),
-body:has(.community-home) .campus-backdrop {
-  background: #eaf5ff;
-}
-body:has(.community-home) .campus-backdrop img {
-  visibility: hidden;
-}
 .campus-content.campus-home {
   padding: 0;
   border: 0;
@@ -23,10 +16,6 @@ body:has(.community-home) .campus-backdrop img {
   --home-hero: #dcefff;
   max-width: 1440px;
   margin-inline: auto;
-}
-:root[data-theme='dark'] body:has(.community-home),
-:root[data-theme='dark'] body:has(.community-home) .campus-backdrop {
-  background: #111c2b;
 }
 :root[data-theme='dark'] .community-home {
   --surface: #182638;

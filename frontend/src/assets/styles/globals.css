@@ -2938,8 +2938,8 @@ main {
   background: var(--blue-dark);
 }
 .assistant-panel {
-  width: min(390px, calc(100vw - 32px));
-  height: min(610px, calc(100dvh - 112px));
+  width: min(440px, calc(100vw - 32px));
+  height: min(700px, calc(100dvh - 112px));
   margin-bottom: 12px;
   display: flex;
   flex-direction: column;
@@ -3066,6 +3066,9 @@ main {
 }
 .assistant-choices {
   padding: 10px 0 0;
+}
+.assistant-messages .assistant-topics {
+  padding: 0 0 16px;
 }
 .assistant-topics button,
 .assistant-choices button {
@@ -3194,8 +3197,9 @@ main {
     height: min(610px, calc(100dvh - 100px));
   }
 }
-@media (max-height: 550px) {
-  .assistant-topics,
+@media (max-height: 650px) {
+  .assistant-header p,
+  .assistant-symbol,
   .assistant-source,
   .assistant-privacy {
     display: none;
@@ -3206,6 +3210,18 @@ main {
   .assistant-composer {
     margin-top: 8px;
     margin-bottom: 8px;
+  }
+}
+@media (max-height: 550px) {
+  .guide-assistant:has(.assistant-panel) {
+    bottom: 16px;
+  }
+  .guide-assistant:has(.assistant-panel) .assistant-launcher {
+    display: none;
+  }
+  .assistant-panel {
+    height: calc(100dvh - 32px);
+    margin-bottom: 0;
   }
 }
 @media (prefers-reduced-motion: reduce) {

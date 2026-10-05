@@ -43,7 +43,8 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
     if (open) input.current?.focus();
   }, [open]);
   useEffect(() => {
-    const latest = log.current?.lastElementChild as HTMLElement | null;
+    const messages = log.current?.querySelectorAll<HTMLElement>('.assistant-message');
+    const latest = messages?.[messages.length - 1];
     // Keep the beginning of long guide replies visible so no steps are skipped.
     if (open && log.current && latest) log.current.scrollTop = Math.max(0, latest.offsetTop - 16);
   }, [messages, open]);
@@ -153,13 +154,13 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
                 )}
               </div>
             ))}
-          </div>
-          <div className="assistant-topics" aria-label="Suggested help topics">
-            {guides.slice(0, 4).map((guide) => (
-              <button type="button" key={guide.id} onClick={() => send(guide.title)}>
-                {guide.title}
-              </button>
-            ))}
+            <div className="assistant-topics" aria-label="Suggested help topics">
+              {guides.slice(0, 4).map((guide) => (
+                <button type="button" key={guide.id} onClick={() => send(guide.title)}>
+                  {guide.title}
+                </button>
+              ))}
+            </div>
           </div>
           <form
             className="assistant-composer"
