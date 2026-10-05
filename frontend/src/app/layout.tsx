@@ -10,6 +10,7 @@ import '../assets/styles/content-editor.css';
 import '../assets/styles/community-updates.css';
 import '../assets/styles/community-layout.css';
 import '../assets/styles/home.css';
+import '../assets/styles/assistant.css';
 import { ConsentGate } from '@/components/layout/consent-gate';
 import { Shell } from '@/components/layout/shell';
 import { connection } from 'next/server';

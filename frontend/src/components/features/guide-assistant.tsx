@@ -21,7 +21,7 @@ const welcome: Message = {
   id: 0,
   role: 'assistant',
   reply: {
-    text: 'Hi! I can help you find your way around TechCare, explain its features, or troubleshoot a device. What would you like to know?',
+    text: 'Find your way around TechCare or get help with a device. Choose a topic or ask below.',
     choices: helpSuggestions,
   },
 };
@@ -51,7 +51,7 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
 
   function close() {
     setOpen(false);
-    launcher.current?.focus();
+    requestAnimationFrame(() => launcher.current?.focus());
   }
   function send(value: string, contextTopic?: string) {
     const text = value.trim().slice(0, 400);
@@ -85,7 +85,7 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
             }
           }}
         >
-          <header className="assistant-header">
+          <div className="assistant-header">
             <span className="assistant-symbol">
               <ChatCircleDots size={25} weight="regular" />
             </span>
@@ -101,7 +101,7 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
             >
               <X size={21} />
             </button>
-          </header>
+          </div>
           <div className="assistant-source">
             <BookOpen size={15} /> Built-in TechCare help · No AI service
           </div>
@@ -115,8 +115,15 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
             tabIndex={0}
           >
             {messages.map(({ id, role, reply }) => (
-              <div key={id} className={`assistant-message ${role}`}>
-                <span className="assistant-speaker">{role === 'user' ? 'You' : 'TechCare'}</span>
+              <div
+                key={id}
+                className={`assistant-message ${role}${id === 0 ? ' assistant-welcome' : ''}`}
+              >
+                {id === 0 ? (
+                  <h3>How can we help?</h3>
+                ) : (
+                  <span className="assistant-speaker">{role === 'user' ? 'You' : 'TechCare'}</span>
+                )}
                 <p>{reply.text}</p>
                 {reply.steps && (
                   <ol>
@@ -154,13 +161,20 @@ export function GuideAssistant({ onAsk }: { onAsk: () => void }) {
                 )}
               </div>
             ))}
-            <div className="assistant-topics" aria-label="Suggested help topics">
-              {guides.slice(0, 4).map((guide) => (
-                <button type="button" key={guide.id} onClick={() => send(guide.title)}>
-                  {guide.title}
-                </button>
-              ))}
-            </div>
+            {messages.length === 1 && guides.length > 0 && (
+              <details className="assistant-guide-list">
+                <summary>
+                  <BookOpen size={18} aria-hidden="true" /> Troubleshooting guides
+                </summary>
+                <div className="assistant-topics" aria-label="Suggested help topics">
+                  {guides.slice(0, 4).map((guide) => (
+                    <button type="button" key={guide.id} onClick={() => send(guide.title)}>
+                      {guide.title}
+                    </button>
+                  ))}
+                </div>
+              </details>
+            )}
           </div>
           <form
             className="assistant-composer"
