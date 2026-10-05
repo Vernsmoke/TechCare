@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import sharp from 'sharp';
@@ -5,8 +6,8 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-browser-'));
 process.env.TECHCARE_DATA_DIR = temporary;
 const origin = 'http://127.0.0.1:3001',
@@ -21,7 +22,7 @@ run(
 closeDatabases();
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', '--hostname', '127.0.0.1', '--port', '3001'],
+  ['node_modules/next/dist/bin/next', 'dev', 'frontend', '--webpack', '--hostname', '127.0.0.1', '--port', '3001'],
   {
     env: {
       ...process.env,
@@ -63,10 +64,12 @@ try {
     args: ['--use-fake-device-for-media-stream', '--use-fake-ui-for-media-stream'],
   });
   const memberContext = await browser.newContext({
+      storageState: consentStorage(origin),
       viewport: { width: 1365, height: 950 },
       reducedMotion: 'reduce',
     }),
     adminContext = await browser.newContext({
+      storageState: consentStorage(origin),
       viewport: { width: 1365, height: 950 },
       reducedMotion: 'reduce',
     });
@@ -85,8 +88,10 @@ try {
     'image/png',
   );
   pass('Dark mode persists after reload; favicon endpoints load');
-  await member.getByRole('button', { name: 'Create Account', exact: true }).click();
-  let dialog = member.getByRole('dialog');
+  await member.getByRole('link', { name: 'Create Account', exact: true }).click();
+  await expect(member).toHaveURL(origin + '/register');
+  await expect(member.getByRole('dialog')).toHaveCount(0);
+  let dialog = member.locator('.auth-page');
   await dialog.getByRole('button', { name: 'Create Account', exact: true }).click();
   await expect(dialog.getByLabel('Display name', { exact: true })).toBeFocused();
   await expect(dialog.getByText('Please enter display name.', { exact: true })).toBeVisible();
@@ -110,6 +115,10 @@ try {
   await dialog.getByLabel('Password (12 to 128 characters)', { exact: true }).fill(password);
   await dialog.getByRole('button', { name: 'Create Account', exact: true }).click();
   await expect(dialog.getByRole('heading', { name: 'Verify Your Email' })).toBeVisible();
+  await expect(member).toHaveURL(origin + '/verify');
+  await expect(dialog.getByLabel('Email address', { exact: true })).toHaveValue(
+    'qa-student@example.test',
+  );
   const code = (await dialog.locator('.demo-note').textContent()).match(/Demo code: (\d{6})/)[1];
   await dialog.getByLabel('Six-digit code').fill(code);
   await dialog.getByRole('button', { name: 'Verify email', exact: true }).click();
@@ -125,7 +134,7 @@ try {
   await member.getByRole('button', { name: 'Save profile' }).click();
   await expect(member.getByRole('status').filter({ hasText: 'Profile updated' })).toBeVisible();
   pass('Profile editing and private visibility');
-  await member.getByRole('button', { name: 'Ask a Question', exact: true }).click();
+  await member.getByRole('button', { name: 'Ask a Question', exact: true }).first().click();
   dialog = member.getByRole('dialog');
   await dialog.getByLabel('Question title').fill('How can I make my laptop start faster?');
   await dialog.getByLabel('Category').selectOption('Operating system');
@@ -212,8 +221,8 @@ try {
   expect((await member.request.get(origin + savedPhoto)).status()).toBe(200);
   expect((await fetch(origin + savedPhoto)).status).toBe(403);
   await admin.goto(origin, { waitUntil: 'networkidle' });
-  await admin.getByRole('button', { name: 'Sign In', exact: true }).click();
-  let ad = admin.getByRole('dialog');
+  await admin.getByRole('link', { name: 'Sign In', exact: true }).click();
+  let ad = admin.locator('.auth-page');
   await ad.getByLabel('Email address').fill('qa-admin@example.test');
   await ad.getByLabel('Password', { exact: true }).fill(password);
   await ad.getByRole('button', { name: 'Sign In', exact: true }).click();
@@ -222,11 +231,14 @@ try {
   await expect(
     admin.getByAltText('Photo attached to: How can I make my laptop start faster?'),
   ).toBeVisible();
-  expect(
-    await admin
-      .getByAltText('Photo attached to: How can I make my laptop start faster?')
-      .evaluate((img) => img.complete && img.naturalWidth > 0),
-  ).toBe(true);
+  await expect
+    .poll(
+      async () =>
+        await admin
+          .getByAltText('Photo attached to: How can I make my laptop start faster?')
+          .evaluate((img) => img.complete && img.naturalWidth > 0),
+    )
+    .toBe(true);
   await admin.getByRole('button', { name: 'Approve & Answer', exact: true }).click();
   ad = admin.getByRole('dialog');
   await ad
@@ -240,7 +252,7 @@ try {
   await ad.getByRole('button', { name: 'Publish question & answer' }).click();
   await expect(admin.getByText('The question queue is clear')).toBeVisible();
   pass('Moderator atomic Approve & Answer');
-  expect((await fetch(origin + savedPhoto)).status).toBe(200);
+  expect((await member.request.get(origin + savedPhoto)).status()).toBe(200);
   await member.getByRole('link', { name: 'Discussion', exact: true }).click();
   await member
     .getByRole('link', { name: 'How can I make my laptop start faster?', exact: true })
@@ -255,8 +267,8 @@ try {
     ),
   ).toBeVisible();
   await dialog.getByLabel('Your comment').fill('Thank you. I will try these safe steps.');
-  await dialog.getByRole('button', { name: 'Send comment for review' }).click();
-  await expect(member.getByRole('status').filter({ hasText: 'Reply submitted' })).toBeVisible();
+  await dialog.getByRole('button', { name: 'Send comment' }).click();
+  await expect(member.getByRole('status').filter({ hasText: 'Comment submitted' })).toBeVisible();
   await member.keyboard.press('Escape');
   pass('Member sees staff answer and submits moderated reply');
   await member.getByRole('link', { name: 'Members', exact: true }).click();
@@ -302,8 +314,8 @@ try {
   await admin.keyboard.press('Escape');
   pass('Received-message report');
   await member.getByRole('link', { name: 'Lost & Found', exact: true }).click();
-  await member.getByRole('button', { name: 'Report an item' }).click();
-  dialog = member.getByRole('dialog');
+  await member.getByRole('link', { name: 'Report an item' }).click();
+  dialog = member.locator('.editor-page');
   await dialog.getByLabel('Report type').selectOption('found');
   await dialog.getByLabel('Item name').fill('Blue laptop sleeve');
   await dialog.getByLabel('Location last seen or found').fill('Campus library');
@@ -312,7 +324,7 @@ try {
     .fill('A plain blue laptop sleeve with a fabric handle.');
   await dialog.getByRole('button', { name: 'Send for review' }).click();
   await expect(
-    member.getByRole('status').filter({ hasText: 'report has been submitted' }),
+    member.getByRole('status').filter({ hasText: 'report and photos have been submitted' }),
   ).toBeVisible();
   pass('Lost & Found report submission');
   await member.getByRole('link', { name: 'Feedback', exact: true }).click();
@@ -337,19 +349,27 @@ try {
     admin.getByText('Synthetic report to verify the evidence access workflow.'),
   ).toBeVisible();
   pass('Staff reviews replies, reports, feedback, and narrow message evidence');
-  await admin.getByRole('button', { name: 'Publish resource', exact: true }).click();
-  ad = admin.getByRole('dialog');
+  await admin.getByRole('link', { name: 'Publish resource', exact: true }).click();
+  ad = admin.locator('.editor-page');
   await ad.getByLabel('Title', { exact: true }).fill('Approved sample learning resource');
   await ad
-    .getByLabel('Description / transcript')
+    .getByLabel('Description', { exact: true })
     .fill('A synthetic link used to test resource publication.');
-  await ad.getByLabel('Student or source credit').fill('QA team');
-  await ad.getByLabel('Direct HTTPS link').fill('https://example.com/learning');
-  await ad.getByRole('button', { name: 'Publish resource', exact: true }).click();
-  await expect(admin.getByRole('status').filter({ hasText: 'Resource published' })).toBeVisible();
+  await ad.getByLabel('Source credit').fill('QA team');
+  await ad.getByLabel('HTTPS link').fill('https://example.com/learning');
+  await ad.getByRole('button', { name: 'Publish', exact: true }).click();
+  await expect(admin.getByRole('status').filter({ hasText: 'Content published' })).toBeVisible();
   pass('Staff resource publishing');
   await admin.getByRole('link', { name: 'Admin', exact: true }).click();
   await admin.getByRole('button', { name: 'App settings', exact: true }).click();
+  await expect(admin.getByRole('button', { name: 'Make moderator', exact: true })).toHaveCount(0);
+  await admin
+    .getByRole('searchbox', { name: 'Find a member by name or email…' })
+    .fill('qa-student@example.test');
+  await admin
+    .locator('.moderator-search')
+    .getByRole('button', { name: 'Search', exact: true })
+    .click();
   await admin.getByRole('button', { name: 'Make moderator', exact: true }).click();
   await expect(admin.getByRole('button', { name: 'Remove moderator', exact: true })).toBeVisible();
   await admin.getByRole('button', { name: 'Remove moderator', exact: true }).click();
@@ -368,7 +388,7 @@ try {
   ).toBeVisible();
   await admin
     .getByLabel('New app logo', { exact: true })
-    .setInputFiles(resolve('public/static/techcare-icon.png'));
+    .setInputFiles(resolve('frontend/public/static/techcare-icon.png'));
   await expect(admin.getByAltText('Selected logo preview')).toBeVisible();
   await expect(admin.locator('.custom-brand img')).toHaveCount(0);
   await admin.getByRole('button', { name: 'Save logo', exact: true }).click();
@@ -380,6 +400,7 @@ try {
   );
   await admin.reload({ waitUntil: 'networkidle' });
   await expect(admin.locator('.custom-brand img')).toHaveAttribute('src', savedLogo);
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   await admin.screenshot({ path: 'artifacts/admin-branding-dark.png', fullPage: true });
   await admin.getByRole('button', { name: 'Restore original logo' }).click();
   await expect(admin.locator('.custom-brand img')).toHaveCount(0);
@@ -387,7 +408,7 @@ try {
     admin.getByRole('status').filter({ hasText: 'Original TechCare logo restored.' }),
   ).toBeVisible();
   pass('Admin logo validation, preview, save, persistence, favicon update and restore');
-  const fixture = resolve('public/static/techcare-hero.png');
+  const fixture = resolve('frontend/public/static/techcare-hero.png');
   await admin.getByLabel('New homepage illustration').setInputFiles(fixture);
   await admin.getByRole('button', { name: 'Update illustration' }).click();
   await expect(
@@ -396,7 +417,7 @@ try {
   pass('Admin image validation and homepage replacement');
   // Keyboard containment and focus restoration.
   await member.getByRole('link', { name: 'Home', exact: true }).click();
-  await member.getByRole('button', { name: 'Ask a Question', exact: true }).click();
+  await member.getByRole('button', { name: 'Ask a Question', exact: true }).first().click();
   for (let i = 0; i < 12; i++) await member.keyboard.press('Tab');
   expect(await member.evaluate(() => !!document.activeElement.closest('[role=dialog]'))).toBe(true);
   await member.getByRole('dialog').getByRole('button', { name: 'Use camera', exact: true }).click();
@@ -415,6 +436,7 @@ try {
   expect(
     await member
       .getByRole('button', { name: 'Ask a Question', exact: true })
+      .first()
       .evaluate((el) => el === document.activeElement),
   ).toBe(true);
   pass('Dialog traps focus, stops camera on close, and restores focus on Escape');
@@ -430,6 +452,7 @@ try {
     '/feedback',
     '/profile',
     '/privacy',
+    '/terms',
   ]) {
     await member.goto(origin + route, { waitUntil: 'networkidle' });
     const scan = await new AxeBuilder({ page: member })
@@ -465,14 +488,17 @@ try {
     .getByRole('navigation')
     .getByRole('link', { name: 'Discussion', exact: true })
     .click();
-  await member.getByRole('button', { name: 'How can I make my laptop start faster?' }).click();
-  await expect(member.getByRole('dialog')).toBeVisible();
+  await member
+    .getByRole('link', { name: 'How can I make my laptop start faster?', exact: true })
+    .click();
+  await expect(
+    member.getByRole('heading', { name: 'How can I make my laptop start faster?', exact: true }),
+  ).toBeVisible();
   expect(await member.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(
     true,
   );
   await member.screenshot({ path: 'artifacts/thread-mobile.png', fullPage: true });
-  await member.keyboard.press('Escape');
-  pass('Mobile navigation and discussion dialog without horizontal overflow');
+  pass('Mobile navigation and discussion page without horizontal overflow');
   await member.setViewportSize({ width: 320, height: 740 });
   await member.getByRole('button', { name: 'Switch to light mode' }).click();
   await expect(member.locator('html')).toHaveAttribute('data-theme', 'light');
@@ -490,7 +516,7 @@ try {
   await expect(member.getByRole('button', { name: 'Sign out', exact: true })).toBeVisible();
   await member.getByRole('button', { name: 'Sign out', exact: true }).click();
   await logoutDialog.getByRole('button', { name: 'Log out', exact: true }).click();
-  await expect(member.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible();
+  await expect(member.getByRole('link', { name: 'Sign In', exact: true })).toBeVisible();
   await member.goto(origin + '/profile');
   await expect(
     member.getByRole('heading', { name: 'Your community is one sign-in away' }),

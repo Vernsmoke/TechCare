@@ -2,7 +2,7 @@
 
 A working Next.js campus and community support portal, built from the supplied TechCare specification. This is a local pilot, not an approved public service or official University website.
 
-The main project now includes the updated blue design, larger text, campus day/night backgrounds, and [admin-managed announcements](docs/ANNOUNCEMENTS.md). Run this folder to use the updated app on port 3000. The separate `handoff/TechCare-claude` copy still uses port 3002. Existing main-project accounts, uploads, settings, and login cookies are retained.
+The project includes the updated blue design, larger text, campus day/night backgrounds, and [admin-managed announcements](docs/ANNOUNCEMENTS.md). Run this folder to use the app on port 3000. Start with [Windows setup](SETUP-INSTRUCTIONS.md) and the [development team handoff](docs/TEAM-HANDOFF.md).
 
 ## Run locally
 
@@ -16,6 +16,8 @@ npm run dev
 
 Open [TechCare](http://127.0.0.1:3000). Use the same hostname as `TECHCARE_ORIGIN`.
 
+The app uses the Webpack build path because this workspace is inside OneDrive, where Turbopack can fail while canonicalizing or memory-mapping its cache. The application's database and uploads in `data/` are unaffected.
+
 The supplied example enables **local classroom verification**: the verification dialog shows a six-digit code. It exercises the workflow but does not establish mailbox ownership. Production startup refuses this mode. No accounts or passwords are shared by default.
 
 Create your own administrator from an interactive terminal:
@@ -27,6 +29,40 @@ npm run create-admin
 The password input is hidden. Members register through Create Account, verify, and sign in separately. An administrator can then assign moderator roles.
 
 The app writes its local SQLite database and protected uploads to ignored `data/`. Configure a different persistent directory with `TECHCARE_DATA_DIR`. No source data from the original Python project is used automatically.
+
+## Project structure
+
+The repository follows a full-stack layout while keeping Next.js as the web runtime:
+
+```text
+TechCare/
+├─ frontend/
+│  ├─ public/                  public images, icons, and favicon
+│  └─ src/
+│     ├─ app/                  pages, layouts, and the API route adapter
+│     ├─ assets/styles/        global and feature stylesheets
+│     ├─ components/
+│     │  ├─ common/            shared content and media components
+│     │  ├─ features/          feature screens and editors
+│     │  ├─ layout/            shell, navigation, and consent
+│     │  └─ ui/                reusable controls and form primitives
+│     ├─ context/              shared application state
+│     ├─ hooks/                reusable data-fetching hooks
+│     ├─ services/             API requests and upload progress
+│     └─ utils/                browser-safe content and assistant helpers
+├─ backend/src/
+│  ├─ config/                  SQLite connection, schema, and migrations
+│  ├─ controllers/             API request handling
+│  ├─ middleware/              authentication and authorization
+│  ├─ services/                domain, media, mail, and business logic
+│  └─ validations/             request validation
+├─ shared/src/                 types, consent, defaults, and image metadata
+├─ tests/                      API and domain tests
+├─ scripts/                    build, migration, and verification scripts
+└─ data/                       ignored database and protected uploads
+```
+
+The root `package.json` owns the project commands, dependencies, and lockfile. Run all npm commands from this root folder. `frontend/README.md`, `backend/README.md`, and `shared/README.md` describe each area’s import boundaries. Build output lives in `frontend/.next-production/`, with development and browser-test output in `frontend/.next/` and `frontend/.next-e2e/`.
 
 ## Working features
 
@@ -41,7 +77,9 @@ The app writes its local SQLite database and protected uploads to ignored `data/
 - A [discussion feed with dedicated question pages](docs/DISCUSSIONS.md), inline comments, question/comment upvotes and downvotes, and Newest/Top sorting.
 - Optional question photos from upload or live camera, with preview, retake, and removal. Photos follow question moderation and are public only after approval. Live camera needs browser permission and HTTPS or localhost; a device photo-picker fallback is available.
 - Independent follows, mutual friendships, private messaging, blocking, and narrow message reporting.
-- Reviewed Lost & Found notices that omit reporter identity; staff-only feedback.
+- Reviewed Lost & Found notices with up to four photos, an optional date, a Returned status, and private messages and responses between the sender, reporter, and project team. Public notices omit reporter identity; feedback remains staff-only.
+- Full-page admin editors with drafts, previews, upload progress, and guide-step images. Media accepts images, uploaded videos, and HTTPS website links, including YouTube and Vimeo.
+- Discussion comment images, replies to replies, author editing/deletion, reply notifications, and staff content-report review.
 - Staff resource publishing, protected administrator accounts, role assignment, and hero replacement.
 - Image decoding/re-encoding, bounded uploads, persistent abuse limits, same-origin mutation checks, security headers, and nonce-based HTML script CSP.
 
@@ -51,6 +89,7 @@ The app writes its local SQLite database and protected uploads to ignored `data/
 npm test
 npm run typecheck
 npm run build
+npm run test:production
 npm run test:browser
 npm run test:content
 npm run test:discussion

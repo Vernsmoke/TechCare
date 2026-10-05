@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
@@ -5,6 +6,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const context = await browser.newContext({
+  storageState: consentStorage('http://127.0.0.1:3000'),
   viewport: { width: 1440, height: 1000 },
   reducedMotion: 'reduce',
 });
@@ -42,10 +44,10 @@ try {
   await expect(page.getByRole('dialog')).toBeVisible();
   await inspect('Guide dialog');
   await page.keyboard.press('Escape');
-  await page.getByRole('button', { name: 'Create Account', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
-  await inspect('Registration dialog');
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Create Account', exact: true }).click();
+  await expect(page).toHaveURL(origin + '/register');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await inspect('Registration page');
   for (const route of [
     'guides',
     'resources',
@@ -63,10 +65,11 @@ try {
   await page.getByRole('button', { name: 'Switch to dark mode' }).click();
   await inspect('Home dark');
   await page.screenshot({ path: 'artifacts/claude-dark.png', fullPage: true });
-  await page.getByRole('button', { name: 'Create Account', exact: true }).click();
-  await expect(page.getByRole('dialog')).toBeVisible();
+  await page.getByRole('link', { name: 'Create Account', exact: true }).click();
+  await expect(page).toHaveURL(origin + '/register');
+  await expect(page.getByRole('dialog')).toHaveCount(0);
   await inspect('Registration dark');
-  await page.keyboard.press('Escape');
+  await page.getByRole('link', { name: 'Home', exact: true }).click();
   await page.getByRole('button', { name: 'Switch to light mode' }).click();
   for (const width of [768, 390, 320]) {
     await page.setViewportSize({ width, height: 844 });

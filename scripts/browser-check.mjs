@@ -1,9 +1,11 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 const context = await browser.newContext({
+  storageState: consentStorage('http://127.0.0.1:3000'),
   viewport: { width: 1440, height: 1050 },
   deviceScaleFactor: 1,
 });
@@ -15,14 +17,13 @@ await page.screenshot({ path: 'artifacts/home-desktop.png', fullPage: true });
 const desktop = await new AxeBuilder({ page })
   .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
   .analyze();
-await page.getByRole('button', { name: 'Create Account', exact: true }).click();
-await page.getByRole('dialog').waitFor();
-await page.waitForFunction(
-  () => getComputedStyle(document.querySelector('[role=dialog]')).opacity === '1',
-);
-const dialog = await new AxeBuilder({ page }).withTags(['wcag2a', 'wcag2aa', 'wcag21aa']).analyze();
-await page.screenshot({ path: 'artifacts/register-dialog.png' });
-await page.getByRole('button', { name: 'Close dialog' }).click();
+await page.getByRole('link', { name: 'Create Account', exact: true }).click();
+await page.getByRole('heading', { name: 'Join the TechCare community' }).waitFor();
+const registration = await new AxeBuilder({ page })
+  .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
+  .analyze();
+await page.screenshot({ path: 'artifacts/register-page.png' });
+await page.getByRole('link', { name: 'Home', exact: true }).click();
 await page.setViewportSize({ width: 390, height: 844 });
 await page.waitForFunction(
   () => document.querySelector('.sidebar').getBoundingClientRect().right <= 1,
@@ -44,7 +45,7 @@ const report = {
     description,
     nodes: nodes.map((n) => ({ target: n.target, summary: n.failureSummary })),
   })),
-  dialog: dialog.violations,
+  registration: registration.violations,
   mobile: mobile.violations,
 };
 await writeFile('artifacts/browser-check.json', JSON.stringify(report, null, 2));
@@ -54,7 +55,7 @@ console.log(
       errors,
       overflow,
       desktopViolations: report.desktop,
-      dialogViolations: dialog.violations.map((v) => v.id),
+      registrationViolations: registration.violations.map((v) => v.id),
       mobileViolations: mobile.violations.map((v) => v.id),
     },
     null,

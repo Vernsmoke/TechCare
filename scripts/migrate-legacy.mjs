@@ -3,9 +3,9 @@ import { mkdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { resolve, join, basename } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { schema, db, all, run, now, closeDatabases } from '../src/lib/server/db.mjs';
-import { saveMedia } from '../src/lib/server/media.mjs';
-import { passwordHash, secret } from '../src/lib/server/auth.mjs';
+import { schema, db, all, run, now, closeDatabases } from '../backend/src/config/db.mjs';
+import { saveMedia } from '../backend/src/services/media.mjs';
+import { passwordHash, secret } from '../backend/src/middleware/auth.mjs';
 
 // Always migrates a new copy. The source must be stopped for database/media consistency.
 export async function migrateLegacy({ source, destination, verification, sourceStopped = false }) {

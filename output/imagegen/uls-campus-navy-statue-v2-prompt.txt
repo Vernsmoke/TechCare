@@ -1,7 +1,0 @@
-Generation mode: built-in image_gen tool
-
-Use case: precise-object-edit.
-Image 1 is the edit target, a dark navy campus background. Image 2 is the user's CORRECTED exact statue orientation reference and is authoritative.
-Task: Correct ONLY the orientation and appearance of the bronze-green courtyard statue at approximately x=37%, y=70% in image 1. Faithfully transfer the statue as viewed in image 2: match its exact facing direction, camera viewing angle, head turn, crown silhouette, shoulder and arm arrangement, full robed body silhouette, drapery, and body proportions. Do not mirror, rotate to another viewpoint, or reinterpret its pose. The user specifically rejected the previous orientation. Carefully match the visible surfaces and profile in image 2 rather than making a generic forward-facing figure. Match the reference's blue tiled plinth and broad red-edged gray stepped pedestal seen from the same frontal angle.
-Keep the monument at its existing courtyard location and approximately existing overall scale. Relight the reference statue for this navy blue-hour scene with gentle golden highlights sufficient to see the matching orientation.
-Preserve all pixels outside the courtyard monument region as closely as possible: sky, composition, buildings, foliage, lighting, windows, paving, gardens, and the separate white statue at far right must remain unchanged. Retain wide 16:9 aspect ratio. No added text, logos, UI, borders, or other changes. Output the full edited background.

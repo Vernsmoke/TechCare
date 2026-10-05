@@ -6,8 +6,8 @@ import { tmpdir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import { createHash, pbkdf2Sync } from 'node:crypto';
 import sharp from 'sharp';
-import { schema, db, closeDatabases } from '../src/lib/server/db.mjs';
-import { passwordOK } from '../src/lib/server/auth.mjs';
+import { schema, db, closeDatabases } from '../backend/src/config/db.mjs';
+import { passwordOK } from '../backend/src/middleware/auth.mjs';
 import { migrateLegacy } from '../scripts/migrate-legacy.mjs';
 const root = await mkdtemp(join(tmpdir(), 'techcare-migration-')),
   source = join(root, 'legacy'),

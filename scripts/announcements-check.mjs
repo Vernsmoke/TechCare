@@ -1,11 +1,12 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute, resolve } from 'node:path';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-announcement-browser-'));
 process.env.TECHCARE_DATA_DIR = temporary;
@@ -20,7 +21,7 @@ closeDatabases();
 await mkdir('artifacts', { recursive: true });
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3014'],
+  ['node_modules/next/dist/bin/next', 'start', 'frontend', '--hostname', '127.0.0.1', '--port', '3014'],
   {
     env: {
       ...process.env,
@@ -65,10 +66,12 @@ try {
   }
   browser = await chromium.launch({ channel: 'msedge', headless: true });
   const adminContext = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
   const guestContext = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
@@ -81,8 +84,9 @@ try {
   });
   expect(login.ok()).toBe(true);
   await admin.goto(origin + '/admin');
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   const manager = admin.getByRole('region', { name: 'Manage announcements' });
-  await expect(manager.getByRole('button', { name: 'Add announcement' })).toBeEnabled();
+  await expect(manager.getByRole('link', { name: 'Add announcement' })).toBeEnabled();
   await guest.goto(origin);
   await expect(guest.getByText('No announcements right now.')).toBeVisible();
   const day = guest.locator('.campus-day'),
@@ -127,13 +131,13 @@ try {
   checks.push(
     'Reference background: route-specific scenes, day/night layers, readable content panel, theme persistence, and separate announcements',
   );
-  await manager.getByRole('button', { name: 'Add announcement' }).click();
-  let dialog = admin.getByRole('dialog');
-  await dialog.getByRole('button', { name: 'Save announcement' }).click();
+  await manager.getByRole('link', { name: 'Add announcement' }).click();
+  let dialog = admin.locator('.editor-page');
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
   await expect(dialog.getByText('Choose a file for announcement image.')).toBeVisible();
   await dialog
     .getByLabel('Announcement image', { exact: true })
-    .setInputFiles(resolve('public/static/techcare-hero.webp'));
+    .setInputFiles(resolve('frontend/public/static/techcare-hero.webp'));
   await expect(dialog.getByAltText('Announcement image preview')).toBeVisible();
   await dialog.getByLabel('Title', { exact: true }).fill('Support booth update');
   await dialog
@@ -146,11 +150,13 @@ try {
   await dialog.getByLabel('Details link (optional)').fill('https://example.org/details');
   await scan(admin, 'Announcement editor');
   await admin.screenshot({ path: 'artifacts/announcement-editor.png' });
-  await dialog.getByRole('button', { name: 'Save announcement' }).click();
+  await dialog.getByRole('button', { name: 'Save draft' }).click();
   await expect(dialog).toHaveCount(0);
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   let first = manager.getByRole('article', { name: 'Support booth update', exact: true });
   await expect(first.getByText('Draft', { exact: true })).toBeVisible();
   await admin.reload();
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   await expect(first).toBeVisible();
   await guest.reload();
   await expect(guest.getByText('No announcements right now.')).toBeVisible();
@@ -165,16 +171,16 @@ try {
     'https://example.org/details',
   );
   await expect(guest.getByRole('button', { name: 'Next announcement' })).toHaveCount(0);
-  await manager.getByRole('button', { name: 'Add announcement' }).click();
-  dialog = admin.getByRole('dialog');
+  await manager.getByRole('link', { name: 'Add announcement' }).click();
+  dialog = admin.locator('.editor-page');
   await dialog
     .getByLabel('Announcement image', { exact: true })
-    .setInputFiles(resolve('public/static/device-care-guide.png'));
+    .setInputFiles(resolve('frontend/public/static/device-care-guide.png'));
   await dialog.getByLabel('Title', { exact: true }).fill('Care for your laptop');
   await dialog.getByLabel('Image description', { exact: true }).fill('Device care tips poster');
-  await dialog.getByLabel('Visibility', { exact: true }).selectOption('published');
-  await dialog.getByRole('button', { name: 'Save announcement' }).click();
+  await dialog.getByRole('button', { name: 'Publish announcement' }).click();
   await expect(dialog).toHaveCount(0);
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   let second = manager.getByRole('article', { name: 'Care for your laptop', exact: true });
   await second.getByRole('button', { name: 'Move up: Care for your laptop', exact: true }).click();
   await expect(manager.getByRole('article').first()).toHaveAttribute(
@@ -213,16 +219,17 @@ try {
   }
   await admin.setViewportSize({ width: 390, height: 844 });
   await scan(admin, 'Admin mobile');
-  await first.getByRole('button', { name: 'Edit', exact: true }).click();
+  await first.getByRole('link', { name: 'Edit', exact: true }).click();
   await admin
     .getByLabel('Replace image (optional)')
-    .setInputFiles(resolve('public/static/device-care-guide.png'));
+    .setInputFiles(resolve('frontend/public/static/device-care-guide.png'));
   await admin
-    .getByRole('dialog')
+    .locator('.editor-page')
     .getByLabel('Title', { exact: true })
     .fill('Updated support notice');
   await scan(admin, 'Editor mobile');
-  await admin.getByRole('button', { name: 'Save announcement' }).click();
+  await admin.getByRole('button', { name: 'Publish announcement' }).click();
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   first = manager.getByRole('article', { name: 'Updated support notice', exact: true });
   await expect(first).toBeVisible();
   await first.getByRole('button', { name: 'Hide', exact: true }).click();
@@ -238,18 +245,18 @@ try {
   await guest.reload();
   await expect(guest.getByText('No announcements right now.')).toBeVisible();
   checks.push('Image replacement, title editing, hide, delete confirmation, and empty fallback');
-  await manager.getByRole('button', { name: 'Add announcement' }).click();
-  dialog = admin.getByRole('dialog');
+  await manager.getByRole('link', { name: 'Add announcement' }).click();
+  dialog = admin.locator('.editor-page');
   await dialog.getByLabel('Image source', { exact: true }).selectOption('covered-walkway');
   await expect(dialog.getByAltText('Announcement image preview')).toHaveAttribute(
     'src',
     '/static/campus/covered-walkway.webp',
   );
   await dialog.getByLabel('Title', { exact: true }).fill('Campus photo announcement');
-  await dialog.getByLabel('Visibility', { exact: true }).selectOption('published');
   await scan(admin, 'Campus photo editor');
-  await dialog.getByRole('button', { name: 'Save announcement' }).click();
+  await dialog.getByRole('button', { name: 'Publish announcement' }).click();
   await expect(dialog).toHaveCount(0);
+  await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   await guest.reload();
   await expect(guest.locator('.announcement-image img')).toHaveAttribute(
     'src',
@@ -269,9 +276,9 @@ try {
     'src',
     '/static/campus/covered-walkway-dark.webp',
   );
-  await campusItem.getByRole('button', { name: 'Edit', exact: true }).click();
+  await campusItem.getByRole('link', { name: 'Edit', exact: true }).click();
   await expect(
-    admin.getByRole('dialog').getByAltText('Announcement image preview'),
+    admin.locator('.editor-page').getByAltText('Announcement image preview'),
   ).toHaveAttribute('src', '/static/campus/covered-walkway-dark.webp');
   checks.push(
     'Admin can publish a campus photo with automatic image description; public, admin thumbnail and editor follow theme',

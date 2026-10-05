@@ -6,7 +6,13 @@ Each published question has its own `/discussion/<id>` page, with its complete t
 
 Signed-in members, moderators, and admins can upvote or downvote questions and published comments. Each account has one vote per item. Choosing the other direction replaces the previous vote; choosing the selected direction removes it. The displayed score is upvotes minus downvotes. Guests can read content; voting and commenting prompt sign-in. Voter identities are not returned publicly.
 
-Existing moderation behavior is retained: questions and member comments need approval; moderator/admin comments publish immediately. Pending or rejected questions cannot be read through direct links or voted on. Comments under an unavailable parent question are unavailable as well. Comments remain a flat chronological list with pagination.
+Questions and member comments need approval; moderator/admin comments publish immediately. Pending or rejected questions cannot be read through direct links or voted on. Comments under an unavailable parent question are unavailable as well.
+
+Comments and replies can include one PNG, JPEG, or WebP image up to 3 MB, including an image without text. Use **Reply** on a comment or an existing reply; replies are grouped under the original comment and identify who they answer. Top-level comments and each thread's replies are paginated independently. Only published images can be read publicly.
+
+Authors can edit or delete their own comments. Member edits return to moderation, and deleting a comment removes its text and photo while keeping its replies. Stale edits are rejected. Reply notifications appear in the top-bar bell after publication, excluding self-replies and blocked accounts. **Report** sends a question or comment to the staff moderation queue, where staff can dismiss the report or remove the content.
+
+Migrations 6 and 7 preserve existing records and add attachments, threaded comments, notifications, content reports, Lost & Found photos, and private item inquiries and responses.
 
 Migration 5 adds `post_votes` and `comment_votes` without changing existing questions or comments. Votes have database-enforced unique account/target pairs, constrained values, and foreign keys. Vote writes are transactional and idempotent, with existing same-origin checks and per-account rate limits.
 

@@ -1,9 +1,9 @@
 import nextEnv from '@next/env';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
-import { email, password, text } from '../src/lib/server/validation.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
+import { email, password, text } from '../backend/src/validations/validation.mjs';
 nextEnv.loadEnvConfig(process.cwd());
 let muted = false;
 const output = new Writable({

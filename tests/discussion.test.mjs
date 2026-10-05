@@ -1,11 +1,12 @@
+import { CONSENT_COOKIE, CONSENT_VERSION } from '../shared/src/consent.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { handle } from '../src/lib/server/api.mjs';
-import { run, one, now, closeDatabases } from '../src/lib/server/db.mjs';
-import { passwordHash } from '../src/lib/server/auth.mjs';
+import { handle } from '../backend/src/controllers/api.mjs';
+import { run, one, now, closeDatabases } from '../backend/src/config/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-'));
 process.env.TECHCARE_DATA_DIR = temporary;
@@ -16,7 +17,7 @@ async function call(path, data, cookie = '') {
     new Request(`${origin}/api/${path}`, {
       method: data ? 'POST' : 'GET',
       headers: {
-        cookie,
+        cookie: `${cookie}; ${CONSENT_COOKIE}=${CONSENT_VERSION}`,
         ...(data ? { origin, 'content-type': 'application/json', 'x-techcare-request': '1' } : {}),
       },
       ...(data ? { body: JSON.stringify(data) } : {}),
@@ -95,7 +96,7 @@ try {
       new Request(`${origin}/api/vote`, {
         method: 'POST',
         headers: {
-          cookie: sessions.member,
+          cookie: `${sessions.member}; ${CONSENT_COOKIE}=${CONSENT_VERSION}`,
           origin: 'https://other.example',
           'content-type': 'application/json',
           'x-techcare-request': '1',

@@ -1,10 +1,10 @@
 # Homepage announcements
 
-Sign in as an administrator and open **Admin → Announcements → Add announcement**.
+Sign in as an administrator and open **Admin → App settings → Announcements → Add announcement**. Add and Edit open a dedicated page.
 
 1. Choose a campus photo under **Image source**, or upload a PNG, JPEG, or WebP image (up to 3 MB). The preview shows the complete image. The three campus photos have matching day/night versions that automatically follow the app's light/dark setting, including enlarged views and admin previews. Custom uploads use the same image in both modes.
 2. Enter a title and image description. Add a short description, event date, and HTTPS details link if needed.
-3. Choose **Draft (hidden)** to prepare privately, or **Published** to show it on the homepage. Select **Save announcement**.
+3. Select **Save draft** to prepare privately, or **Publish** to show it on the homepage.
 
 Use **Edit** to change the details or replace the image. Leaving the replacement field empty retains the current image. **Publish / Hide** controls visibility. The arrow buttons change order; **Delete** asks for confirmation. Up to 12 announcements can be stored.
 

@@ -1,6 +1,8 @@
 node_modules/
 .next/
 .next-*/
+frontend/.next/
+frontend/.next-*/
 out/
 data/
 .env*
@@ -8,8 +10,25 @@ data/
 *.tsbuildinfo
 *.log
 artifacts/
+# Generated UI screenshots; retain image originals in output/imagegen/.
+/output/*.png
 test-results/
 playwright-report/
+tools/ffmpeg/
 __pycache__/
 *.sqlite*
 *.db
+
+# Local coding-agent setup (not needed to run or develop TechCare).
+.agents/
+.codex/
+.claude/
+AGENTS.md
+CLAUDE.md
+skills-lock.json
+
+# Historical exports and design-generation originals; runtime images live in frontend/public/.
+/handoff/
+/TechCare-clean-handoff/
+/TechCare-clean-handoff.zip
+/output/

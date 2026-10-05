@@ -1,10 +1,14 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir, writeFile } from 'node:fs/promises';
 
 await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
-const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+const context = await browser.newContext({
+  storageState: consentStorage('http://127.0.0.1:3000'),
+  viewport: { width: 1440, height: 1000 },
+});
 const page = await context.newPage();
 const errors = [];
 page.on('pageerror', (error) => errors.push(error.message));
@@ -112,8 +116,9 @@ try {
   await expect(log.getByRole('heading', { name: 'Wi-Fi connected, no internet?' })).toBeVisible();
   checks.push('Clear, Escape, focus restoration, and close/reopen continuity');
   await panel.getByRole('button', { name: 'Ask the community' }).click();
-  await expect(page.getByRole('dialog', { name: 'Welcome back' })).toBeVisible();
-  await page.keyboard.press('Escape');
+  await expect(page).toHaveURL(/\/login$/);
+  await expect(page.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: 'Welcome back' })).toHaveCount(0);
   await launcher.click();
   await panel.getByRole('button', { name: 'Clear chat' }).click();
   await send('Where is the support booth?');

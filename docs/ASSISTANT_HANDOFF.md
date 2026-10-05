@@ -1,12 +1,12 @@
 # TechCare assistant handoff
 
-The project owner chose an account-independent assistant for transfer to another development team. There is no OpenAI SDK, AI endpoint, or personal ChatGPT connection in the application. No AI API credentials are required. Do not complete the previously opened external key-setup flow for this implementation.
+The built-in help widget uses local project content. There is no OpenAI SDK, AI endpoint, or personal ChatGPT connection in the application. No AI API credentials are required.
 
 ## How answers work
 
-The widget runs entirely in the browser. `src/lib/assistant-knowledge.ts` holds public product answers, wording patterns, detailed steps, and internal links. `src/lib/guide-assistant.ts` matches questions to that content and the existing troubleshooting guides in `src/lib/content.ts`. It recognizes limited follow-ups such as “Show me the steps” and “Tell me more” using the last topic. This is a rule-based help assistant, not a generative model or general-purpose search engine. Unsupported questions receive an honest fallback with suggestions and a community link.
+The widget runs entirely in the browser. `frontend/src/utils/assistant-knowledge.ts` holds public product answers, wording patterns, detailed steps, and internal links. `frontend/src/utils/guide-assistant.ts` matches questions to that content and the existing troubleshooting guides in `frontend/src/utils/content.ts`. It recognizes limited follow-ups such as “Show me the steps” and “Tell me more” using the last topic. This is a rule-based help assistant, not a generative model or general-purpose search engine. Unsupported questions receive an honest fallback with suggestions and a community link.
 
-The UI is in `src/components/guide-assistant.tsx`, mounted in the shared shell. Suggested follow-ups retain the topic of the reply they belong to. Answers do not inspect accounts, discussions, private messages, or live moderation status, and cannot take actions for the visitor. Ordinary page links navigate to existing screens; account permissions still apply on those screens.
+The UI is in `frontend/src/components/features/guide-assistant.tsx`, mounted in the shared shell. Suggested follow-ups retain the topic of the reply they belong to. Answers do not inspect accounts, discussions, private messages, or live moderation status, and cannot take actions for the visitor. Ordinary page links navigate to existing screens; account permissions still apply on those screens.
 
 ## Updating help
 

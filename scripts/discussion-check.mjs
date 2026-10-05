@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 // Run after npm run build. Uses the production bundle with an isolated local test database.
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -5,8 +6,8 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-browser-'));
 process.env.TECHCARE_DATA_DIR = temporary;
@@ -46,7 +47,7 @@ run(
 closeDatabases();
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3018'],
+  ['node_modules/next/dist/bin/next', 'start', 'frontend', '--hostname', '127.0.0.1', '--port', '3018'],
   {
     env: {
       ...process.env,
@@ -80,10 +81,12 @@ try {
   }
   browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
   const guestContext = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
@@ -96,6 +99,7 @@ try {
     guest = await guestContext.newPage();
   for (const p of [page, guest]) p.on('pageerror', (e) => errors.push(e.message));
   const memberContext = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
@@ -136,9 +140,9 @@ try {
   await member
     .getByLabel('Your comment', { exact: true })
     .fill('I checked another device and it stays connected.');
-  await member.getByRole('button', { name: 'Send comment for review', exact: true }).click();
+  await member.getByRole('button', { name: 'Send comment', exact: true }).click();
   await expect(
-    member.getByRole('status').filter({ hasText: 'Reply submitted for moderator review.' }),
+    member.getByRole('status').filter({ hasText: 'Comment submitted for moderator review.' }),
   ).toBeVisible();
   await expect(member.locator('.discussion-comment')).toHaveCount(1);
   const queue = await (await context.request.get(origin + '/api/queue')).json();
@@ -157,7 +161,7 @@ try {
   await page
     .getByLabel('Your comment', { exact: true })
     .fill('Try updating the wireless driver from the device manufacturer.');
-  await page.getByRole('button', { name: 'Publish comment', exact: true }).click();
+  await page.getByRole('button', { name: 'Send comment', exact: true }).click();
   await expect(
     page.locator('.discussion-comment').filter({ hasText: 'Try updating the wireless driver' }),
   ).toBeVisible();
@@ -165,8 +169,9 @@ try {
   await guest.goto(origin + '/discussion/3', { waitUntil: 'networkidle' });
   await expect(guest.getByRole('button', { name: 'Sign in to comment' })).toBeVisible();
   await guest.getByRole('button', { name: 'Upvote question', exact: true }).click();
-  await expect(guest.getByRole('dialog', { name: 'Welcome back' })).toBeVisible();
-  await guest.keyboard.press('Escape');
+  await expect(guest).toHaveURL(/\/login$/);
+  await expect(guest.getByRole('heading', { name: 'Welcome back' })).toBeVisible();
+  await expect(guest.getByRole('dialog', { name: 'Welcome back' })).toHaveCount(0);
   await guest.goto(origin + '/discussion?thread=1', { waitUntil: 'networkidle' });
   await expect(guest).toHaveURL(origin + '/discussion/1');
   await expect(
@@ -183,14 +188,14 @@ try {
     .filter({ hasText: 'How can I speed up my laptop?' })
     .getByRole('button', { name: 'Upvote question' })
     .click();
-  await member.getByRole('button', { name: 'Top', exact: true }).click();
+  await member.getByRole('combobox', { name: 'Sort questions' }).selectOption('top');
   await expect(member.locator('.discussion-post').first()).toContainText(
     'How can I speed up my laptop?',
   );
-  await member.getByRole('button', { name: 'Connectivity', exact: true }).click();
+  await member.getByRole('combobox', { name: 'Filter by topic' }).selectOption('Connectivity');
   await expect(member.locator('.discussion-post')).toHaveCount(1);
   await expect(member.locator('.discussion-post')).toContainText('Why does my Wi-Fi');
-  await member.getByRole('button', { name: 'All topics', exact: true }).click();
+  await member.getByRole('combobox', { name: 'Filter by topic' }).selectOption('');
   pass('Top sorting and category filtering work with the saved vote scores');
   await mkdir('artifacts', { recursive: true });
   await member.screenshot({ path: 'artifacts/discussion-feed-desktop.png', fullPage: true });

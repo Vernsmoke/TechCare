@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
@@ -7,7 +8,10 @@ const origin = process.env.NAVIGATION_TEST_ORIGIN || 'http://127.0.0.1:3002';
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 await mkdir('artifacts/navigation', { recursive: true });
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({
+    storageState: consentStorage(origin),
+    viewport: { width: 1440, height: 1000 },
+  });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));

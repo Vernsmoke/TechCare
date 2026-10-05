@@ -4,12 +4,13 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "next dev frontend --webpack --hostname 127.0.0.1",
     "build": "node scripts/build.mjs",
     "start": "node scripts/start.mjs",
-    "typecheck": "tsc --noEmit",
-    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs",
+    "typecheck": "tsc --project frontend/tsconfig.json --noEmit",
+    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs tests/community-media.test.mjs tests/community-updates.test.mjs",
     "test:browser": "node scripts/workflow-check.mjs",
+    "test:production": "node scripts/production-check.mjs",
     "create-admin": "node scripts/create-admin.mjs",
     "test:content": "npm run build && node scripts/content-management-check.mjs",
     "test:discussion": "npm run build && node scripts/discussion-check.mjs"

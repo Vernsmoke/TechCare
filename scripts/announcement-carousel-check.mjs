@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { mkdir } from 'node:fs/promises';
@@ -23,7 +24,10 @@ let items = fixtures;
 await mkdir('artifacts', { recursive: true });
 const browser = await chromium.launch({ channel: 'msedge', headless: true });
 try {
-  const context = await browser.newContext({ viewport: { width: 1440, height: 1000 } });
+  const context = await browser.newContext({
+    storageState: consentStorage('http://127.0.0.1:3000'),
+    viewport: { width: 1440, height: 1000 },
+  });
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (error) => errors.push(error.message));

@@ -1,0 +1,6 @@
+{
+  "name": "@techcare/backend",
+  "private": true,
+  "type": "module",
+  "description": "Server-side domain modules hosted by the frontend Next.js runtime"
+}

@@ -4,7 +4,7 @@ Date: 2026-09-25. Status: local pilot implementation.
 
 ## Architecture
 
-Next.js owns the interface and backend. There is no Python server dependency in the new app. App Router pages use a shared persistent client shell, with server-rendered HTML and isolated interactive screens. The backend is split into transport (`app/api`), domain orchestration (`lib/server/api.mjs`), validation, authentication/privacy, persistence, mail, and media.
+Next.js owns the interface and backend. There is no Python server dependency in the new app. App Router pages use a shared persistent client shell, with server-rendered HTML and isolated interactive screens. The frontend lives in `frontend/src/`; reusable API calls, hooks, and context live in `services/`, `hooks/`, and `context/`. The backend is split into transport (`frontend/src/app/api`), request orchestration (`backend/src/controllers/api.mjs`), validation, authentication/privacy, persistence, mail, and media. Browser-safe shared contracts live in `shared/src/`.
 
 SQLite is retained for the single-node pilot through Node 24's built-in SQLite API. A migration to IT-managed PostgreSQL is still required before the specified public multi-worker/scaled deployment. IDs, timestamps, the original password-hash format, and core relationships remain compatible. New passwords use PBKDF2-SHA256 with 600,000 iterations; the verifier accepts the original 310,000 iteration format. Passwords allow 12 to 128 characters without trimming.
 
@@ -26,7 +26,7 @@ The pilot deliberately uses a global source rate ceiling because no trusted reve
 - Approve & Answer publishes the question, answer, and audit event in one transaction. Already-reviewed/missing targets return a conflict and cannot duplicate an answer.
 - All administrator accounts are protected from web demotion. Admin creation is an operator CLI, never public registration.
 - Mutations require exact configured Origin, JSON, a custom request header, and no cross-site Fetch Metadata. There are no permissive CORS responses. Production secure cookies are configured explicitly, never inferred from client-forwarded protocol headers.
-- HTML gets a fresh nonce-based script CSP through `src/proxy.ts`. Styles allow inline style attributes for React/Radix behavior; development alone allows script eval. HTML rendering is dynamic for nonce correctness. JSON/media responses get security headers through Next configuration.
+- HTML gets a fresh nonce-based script CSP through `frontend/src/proxy.ts`. Styles allow inline style attributes for React/Radix behavior; development alone allows script eval. HTML rendering is dynamic for nonce correctness. JSON/media responses get security headers through Next configuration.
 - Recovery tokens are single-use, hashed, and expire after 15 minutes. Reset revokes all prior sessions. Unknown and known account requests have the same normal recovery response, including mail failures. Local demonstration mode intentionally exposes challenge material only to the local workflow.
 
 ## Visual direction
@@ -41,16 +41,18 @@ The shell replaces the reference single-document page switching with bookmarkabl
 
 | Location                                         | Responsibility                                                                  |
 | ------------------------------------------------ | ------------------------------------------------------------------------------- |
-| `src/app/layout.tsx`, `src/components/shell.tsx` | Document, shell, navigation, authentication, session clearing, question modal   |
-| `src/components/home.tsx`                        | Home and guide detail dialog                                                    |
-| `src/components/community.tsx`                   | Discussion, replies, directory, friendships, messaging/reporting                |
-| `src/components/views.tsx`                       | Guides, media, booth, Lost & Found, feedback, profile, moderator/admin, privacy |
-| `src/components/ui.tsx`                          | Accessible dialog, bounded forms, fetching, loading/error/empty states          |
-| `src/app/globals.css`                            | Design tokens, components, responsive layout, reduced motion                    |
-| `src/lib/content.ts`, `src/lib/types.ts`         | Safe guide content, sample credits, shared types                                |
-| `src/lib/server/`                                | Database, permissions, validators, mail, media, domain API                      |
-| `src/app/api/[...path]/route.ts`                 | Next Node-runtime API transport                                                 |
-| `src/proxy.ts`, `next.config.mjs`                | HTML nonce and response security headers                                        |
+| `frontend/src/app/layout.tsx`, `frontend/src/components/layout/shell.tsx` | Document, shell, navigation, authentication, session clearing, question modal   |
+| `frontend/src/components/features/home.tsx`                              | Home and guide detail dialog                                                    |
+| `frontend/src/components/features/community.tsx`                          | Discussion, replies, directory, friendships, messaging/reporting                |
+| `frontend/src/components/features/views.tsx`                              | Guides, media, booth, Lost & Found, feedback, profile, moderator/admin, privacy |
+| `frontend/src/components/ui/ui.tsx`                                       | Accessible dialogs, bounded forms, loading/error/empty states                  |
+| `frontend/src/services/api.ts`, `frontend/src/hooks/use-data.ts`           | API requests, upload progress, data fetching, and polling                      |
+| `frontend/src/context/techcare-context.ts`                                | Shared application state contract and context consumer hook                   |
+| `frontend/src/assets/styles/globals.css`                                  | Design tokens, components, responsive layout, reduced motion                    |
+| `frontend/src/utils/content.ts`, `shared/src/types.ts`                    | Safe guide content, sample credits, shared types                                |
+| `backend/src/`                                                             | Database, permissions, validators, mail, media, domain API                      |
+| `frontend/src/app/api/[...path]/route.ts`                                 | Next Node-runtime API transport                                                 |
+| `frontend/src/proxy.ts`, `frontend/next.config.mjs`                       | HTML nonce and response security headers                                        |
 | `scripts/create-admin.mjs`, `scripts/start.mjs`  | Operator bootstrap and guarded production startup                               |
 | `scripts/migrate-legacy.mjs`                     | Explicit copy-based legacy migration                                            |
 | `tests/`                                         | Isolated API and migration acceptance tests                                     |

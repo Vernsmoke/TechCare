@@ -1,13 +1,14 @@
+import { CONSENT_COOKIE, CONSENT_VERSION } from '../shared/src/consent.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
 import sharp from 'sharp';
-import { handle } from '../src/lib/server/api.mjs';
-import { run, one, now, closeDatabases } from '../src/lib/server/db.mjs';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { guides, defaultBooth } from '../src/lib/content-defaults.mjs';
+import { handle } from '../backend/src/controllers/api.mjs';
+import { run, one, now, closeDatabases } from '../backend/src/config/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { guides, defaultBooth } from '../shared/src/content-defaults.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-content-'));
 process.env.TECHCARE_DATA_DIR = temporary;
@@ -26,7 +27,7 @@ async function call(path, data, cookie = '') {
     new Request(`${origin}/api/${path}`, {
       method: data ? 'POST' : 'GET',
       headers: {
-        cookie,
+        cookie: `${cookie}; ${CONSENT_COOKIE}=${CONSENT_VERSION}`,
         ...(data ? { origin, 'content-type': 'application/json', 'x-techcare-request': '1' } : {}),
       },
       ...(data ? { body: JSON.stringify(data) } : {}),

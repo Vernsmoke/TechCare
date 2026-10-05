@@ -1,3 +1,4 @@
+import { consentStorage } from './consent-fixture.mjs';
 // Run after npm run build. Uses the production bundle with an isolated local test database.
 import { chromium, expect } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
@@ -5,8 +6,8 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute } from 'node:path';
-import { passwordHash } from '../src/lib/server/auth.mjs';
-import { run, now, closeDatabases } from '../src/lib/server/db.mjs';
+import { passwordHash } from '../backend/src/middleware/auth.mjs';
+import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-content-browser-'));
 process.env.TECHCARE_DATA_DIR = temporary;
@@ -22,7 +23,7 @@ run(
 closeDatabases();
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', '--hostname', '127.0.0.1', '--port', '3016'],
+  ['node_modules/next/dist/bin/next', 'start', 'frontend', '--hostname', '127.0.0.1', '--port', '3016'],
   {
     env: {
       ...process.env,
@@ -56,10 +57,12 @@ try {
   }
   browser = await chromium.launch({ channel: 'msedge', headless: true });
   const context = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
   const guestContext = await browser.newContext({
+    storageState: consentStorage(origin),
     viewport: { width: 1440, height: 1000 },
     reducedMotion: 'reduce',
   });
@@ -74,16 +77,16 @@ try {
   await page.goto(origin + '/admin', { waitUntil: 'networkidle' });
   const manager = page.locator('.content-manager');
   await expect(manager.getByRole('heading', { name: 'Page content', exact: true })).toBeVisible();
-  await manager.getByRole('button', { name: 'Add guide', exact: true }).click();
-  let dialog = page.getByRole('dialog', { name: 'Add guide', exact: true });
+  await manager.getByRole('link', { name: 'Add guide', exact: true }).click();
+  let dialog = page.locator('.editor-page');
   await dialog.getByLabel('Title', { exact: true }).fill('QA printer setup guide');
   await dialog
     .getByLabel('Summary', { exact: true })
     .fill('Connect your printer using safe checks.');
-  await dialog
-    .getByLabel('Steps (one per line, up to 20)', { exact: true })
-    .fill('Check the printer connection.\nOpen the printer settings.');
-  await dialog.getByRole('button', { name: 'Save content', exact: true }).click();
+  await dialog.getByLabel('Instruction 1', { exact: true }).fill('Check the printer connection.');
+  await dialog.getByRole('button', { name: 'Add a step', exact: true }).click();
+  await dialog.getByLabel('Instruction 2', { exact: true }).fill('Open the printer settings.');
+  await dialog.getByRole('button', { name: 'Save draft', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(
     manager.getByRole('heading', { name: 'QA printer setup guide', exact: true }),
@@ -112,10 +115,10 @@ try {
     guest.getByRole('log').getByText('Check the printer connection.', { exact: true }),
   ).toBeVisible();
   pass('Guide drafts stay private; published guide and assistant show saved steps');
-  await manager.getByRole('button', { name: 'Edit QA printer setup guide', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Edit guide', exact: true });
+  await manager.getByRole('link', { name: 'Edit QA printer setup guide', exact: true }).click();
+  dialog = page.locator('.editor-page');
   await dialog.getByLabel('Title', { exact: true }).fill('QA updated printer guide');
-  await dialog.getByRole('button', { name: 'Save content', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await manager.getByRole('button', { name: 'Hide QA updated printer guide', exact: true }).click();
   await expect(
@@ -135,14 +138,14 @@ try {
   ).toHaveCount(0);
   pass('Guide editing, hiding and confirmed deletion work through the real API');
   await manager.getByRole('button', { name: 'Video & Media', exact: true }).click();
-  await manager.getByRole('button', { name: 'Add media item', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Add media item', exact: true });
+  await manager.getByRole('link', { name: 'Add media item', exact: true }).click();
+  dialog = page.locator('.editor-page');
   await dialog.getByLabel('Title', { exact: true }).fill('QA learning video');
-  await dialog.getByLabel('Visibility', { exact: true }).selectOption('published');
   await dialog.getByLabel('Source credit', { exact: true }).fill('QA teacher');
   await dialog.getByLabel('HTTPS link', { exact: true }).fill('https://example.org/learning-video');
-  await dialog.getByRole('button', { name: 'Save content', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  await manager.getByRole('button', { name: 'Video & Media', exact: true }).click();
   await guest.goto(origin + '/resources', { waitUntil: 'networkidle' });
   await expect(
     guest.getByRole('heading', { name: 'QA learning video', exact: true }),
@@ -159,10 +162,9 @@ try {
   ).toHaveCount(0);
   pass('Media publishing works and hidden seeded items do not reappear');
   await manager.getByRole('button', { name: 'Support Booth', exact: true }).click();
-  await manager.getByRole('button', { name: 'Add booth', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Add booth', exact: true });
+  await manager.getByRole('link', { name: 'Add booth', exact: true }).click();
+  dialog = page.locator('.editor-page');
   await dialog.getByLabel('Title', { exact: true }).fill('QA library support day');
-  await dialog.getByLabel('Visibility', { exact: true }).selectOption('published');
   await dialog
     .getByLabel('Description', { exact: true })
     .fill('Bring your everyday technology questions.');
@@ -173,8 +175,9 @@ try {
   await dialog
     .getByLabel('Image description', { exact: true })
     .fill('The campus building and gardens');
-  await dialog.getByRole('button', { name: 'Save content', exact: true }).click();
+  await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(dialog).toHaveCount(0);
+  await manager.getByRole('button', { name: 'Support Booth', exact: true }).click();
   await guest.goto(origin + '/booth', { waitUntil: 'networkidle' });
   await expect(
     guest.getByRole('heading', { name: 'QA library support day', exact: true }),
@@ -193,10 +196,10 @@ try {
   await page.screenshot({ path: 'artifacts/content-admin-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth)).toBe(false);
-  await manager.getByRole('button', { name: 'Edit QA library support day', exact: true }).click();
-  dialog = page.getByRole('dialog', { name: 'Edit booth', exact: true });
+  await manager.getByRole('link', { name: 'Edit QA library support day', exact: true }).click();
+  dialog = page.locator('.editor-page');
   const mobile = await new AxeBuilder({ page })
-    .include('[role="dialog"]')
+    .include('.editor-page')
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
   expect(mobile.violations).toEqual([]);

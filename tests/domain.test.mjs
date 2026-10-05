@@ -1,3 +1,4 @@
+import { CONSENT_COOKIE, CONSENT_VERSION } from '../shared/src/consent.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile } from 'node:fs/promises';
@@ -5,9 +6,9 @@ import { tmpdir } from 'node:os';
 import { join, resolve, relative, isAbsolute } from 'node:path';
 import sharp from 'sharp';
 import nodemailer from 'nodemailer';
-import { handle } from '../src/lib/server/api.mjs';
-import { all, one, run, now, closeDatabases, transaction } from '../src/lib/server/db.mjs';
-import { passwordHash, passwordOK, assertConfig } from '../src/lib/server/auth.mjs';
+import { handle } from '../backend/src/controllers/api.mjs';
+import { all, one, run, now, closeDatabases, transaction } from '../backend/src/config/db.mjs';
+import { passwordHash, passwordOK, assertConfig } from '../backend/src/middleware/auth.mjs';
 const directory = await mkdtemp(join(tmpdir(), 'techcare-test-'));
 process.env.TECHCARE_DATA_DIR = directory;
 process.env.TECHCARE_DEV_VERIFY = '1';
@@ -18,7 +19,7 @@ function client() {
 }
 async function call(c, path, data, extra = {}) {
   const headers = {
-    cookie: c.cookie,
+    cookie: `${c.cookie}; ${CONSENT_COOKIE}=${CONSENT_VERSION}`,
     ...(data !== undefined
       ? { 'content-type': 'application/json', origin, 'x-techcare-request': '1' }
       : {}),
@@ -734,7 +735,12 @@ try {
         const r = await handle(
           new Request(origin + '/api/posts', {
             method: 'POST',
-            headers: { origin, 'content-type': 'application/json', 'x-techcare-request': '1' },
+            headers: {
+              cookie: `${CONSENT_COOKIE}=${CONSENT_VERSION}`,
+              origin,
+              'content-type': 'application/json',
+              'x-techcare-request': '1',
+            },
             body: 'not json',
           }),
         );
@@ -742,7 +748,12 @@ try {
         const huge = await handle(
           new Request(origin + '/api/login', {
             method: 'POST',
-            headers: { origin, 'content-type': 'application/json', 'x-techcare-request': '1' },
+            headers: {
+              cookie: `${CONSENT_COOKIE}=${CONSENT_VERSION}`,
+              origin,
+              'content-type': 'application/json',
+              'x-techcare-request': '1',
+            },
             body: 'x'.repeat(32769),
           }),
         );
