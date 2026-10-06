@@ -42,7 +42,7 @@ export function LogoSettings() {
       <p>Choose a logo for the navigation and browser tab. Your image keeps its proportions.</p>
       <div className="logo-preview">
         <img
-          src={preview || logo || '/static/techcare-icon.png'}
+          src={preview || logo || '/static/techcare-logo.png'}
           alt={preview ? 'Selected logo preview' : 'Current app logo'}
         />
         <span>{preview ? 'Preview — save to apply' : 'Current logo'}</span>

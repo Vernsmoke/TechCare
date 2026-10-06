@@ -15,7 +15,6 @@ import {
   ChatTeardropText,
   UserPlus,
   Heart,
-  Monitor,
   UserCircle,
   ShieldCheck,
   Gear,
@@ -326,16 +325,9 @@ export function Shell({
         }}
       >
         <Link href="/" className="brand" aria-label="TechCare home" onClick={() => setMenu(false)}>
-          {logo ? (
-            <span className="brand-mark custom-brand">
-              <img src={logo} alt="" />
-            </span>
-          ) : (
-            <span className="brand-mark">
-              <Monitor size={25} weight="bold" />
-              <Heart size={12} weight="fill" />
-            </span>
-          )}
+          <span className="brand-mark custom-brand">
+            <img src={logo || '/static/techcare-logo.png'} alt="" />
+          </span>
           <span className="brand-name">
             Tech<span>Care</span>
           </span>
