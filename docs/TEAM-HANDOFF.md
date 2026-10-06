@@ -6,7 +6,7 @@ Install Node.js 24 or later. Clone this repository or download its ZIP and extra
 
 ```powershell
 npm ci
-Copy-Item .env.example .env.local
+npm run setup
 npm run create-admin
 npm run dev
 ```

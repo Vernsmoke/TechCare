@@ -13,7 +13,7 @@
 - `src/utils/`: browser-safe content and assistant helpers.
 - `src/proxy.ts`: Next.js request proxy.
 
-Run `npm install`, `npm run dev`, and all checks from the repository root.
+Run `npm ci`, `npm run setup`, `npm run dev`, and all checks from the repository root. Setup creates the root `.env.local` without overwriting existing settings. Open the exact address printed by the startup check.
 Dependencies and the lockfile are managed there. Root `.env.local` is loaded
 by `next.config.mjs`; existing data stays in root `data/`.
 Use `@/` for frontend imports, `@shared/` for shared contracts, and

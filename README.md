@@ -9,12 +9,14 @@ The project includes the updated blue design, larger text, campus day/night back
 Requires Node.js 24 or later. The project uses Next.js 16, React 19, TypeScript, SQLite through `node:sqlite`, Radix Dialog, Phosphor icons, Sharp, and Nodemailer.
 
 ```powershell
-npm install
-Copy-Item .env.example .env.local
+npm ci
+npm run setup
 npm run dev
 ```
 
 Open [TechCare](http://127.0.0.1:3000). Use the same hostname as `TECHCARE_ORIGIN`.
+
+`npm run setup` creates the ignored root `.env.local` without overwriting an existing file. `npm run dev` checks the local configuration first and explicitly uses port 3000 so it cannot silently switch to a port that fails the API origin check. Run `npm run check:setup` to diagnose settings without starting the app. If port 3000 is occupied, stop the existing server or use that server's terminal; do not open an unrelated process on that port.
 
 The app uses the Webpack build path because this workspace is inside OneDrive, where Turbopack can fail while canonicalizing or memory-mapping its cache. The application's database and uploads in `data/` are unaffected.
 
