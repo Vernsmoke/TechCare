@@ -9,10 +9,12 @@ const limits = { guides: 100, resources: 200, booths: 50 };
 function kindName(kind) {
   return v.choice(kind, kinds, 'content type');
 }
-export function managedContent(kind, admin = false) {
+export async function managedContent(kind, admin = false) {
   kindName(kind);
-  return all(
-    `SELECT * FROM ${kind} ${admin ? '' : "WHERE status='published'"} ORDER BY ${kind === 'guides' ? 'id' : 'id DESC'}`,
+  return (
+    await all(
+      `SELECT * FROM ${kind} ${admin ? '' : "WHERE status='published'"} ORDER BY ${kind === 'guides' ? 'id' : 'id DESC'}`,
+    )
   ).map((row) => {
     if (row.steps) row.steps = JSON.parse(row.steps);
     if (row.images) row.images = JSON.parse(row.images);
@@ -24,8 +26,8 @@ export function managedContent(kind, admin = false) {
     return row;
   });
 }
-function current(kind, d) {
-  const row = one(`SELECT * FROM ${kind} WHERE id=?`, v.id(d.id));
+async function current(kind, d) {
+  const row = await one(`SELECT * FROM ${kind} WHERE id=?`, v.id(d.id));
   if (!row) throw new Problem('Content not found.', 404);
   if (Number(d.revision) !== row.revision)
     throw new Problem('This content changed. Refresh the list before editing it again.', 409);
@@ -89,8 +91,8 @@ function details(kind, d) {
     note: v.text(d.note || '', 'Additional note', 0, 1000),
   };
 }
-function audit(me, action, kind, id) {
-  run(
+async function audit(me, action, kind, id) {
+  await run(
     'INSERT INTO audit(actor,action,kind,target,created) VALUES(?,?,?,?,?)',
     me.id,
     action,
@@ -107,10 +109,10 @@ export async function changeManagedContent(kind, d, me, staffCreate = false) {
   const action = v.choice(d.action, ['save', 'visibility', 'delete'], 'action');
   if (action !== 'save') {
     let discarded = [];
-    transaction(() => {
-      const row = current(kind, d);
+    await transaction(async () => {
+      const row = await current(kind, d);
       if (action === 'delete') {
-        run(`DELETE FROM ${kind} WHERE id=?`, row.id);
+        await run(`DELETE FROM ${kind} WHERE id=?`, row.id);
         discarded = [
           row.url,
           row.image,
@@ -118,20 +120,20 @@ export async function changeManagedContent(kind, d, me, staffCreate = false) {
           ...JSON.parse(row.images || '[]').map((image) => image.url),
         ].filter(Boolean);
       } else {
-        run(
+        await run(
           `UPDATE ${kind} SET status=?,revision=revision+1 WHERE id=?`,
           v.choice(d.status, ['draft', 'published'], 'visibility'),
           row.id,
         );
       }
-      audit(me, action, kind, row.id);
+      await audit(me, action, kind, row.id);
     });
     for (const url of discarded) await discardManagedMedia(url);
     return { message: action === 'delete' ? 'Content deleted.' : 'Visibility updated.' };
   }
   const fields = details(kind, d);
-  const existing = d.id ? current(kind, d) : null;
-  if (!existing && one(`SELECT count(*) AS n FROM ${kind}`).n >= limits[kind])
+  const existing = d.id ? await current(kind, d) : null;
+  if (!existing && (await one(`SELECT count(*) AS n FROM ${kind}`)).n >= limits[kind])
     throw new Problem(
       `Keep up to ${limits[kind]} items. Delete an old item before adding another.`,
     );
@@ -200,33 +202,35 @@ export async function changeManagedContent(kind, d, me, staffCreate = false) {
   }
   let id;
   try {
-    transaction(() => {
+    await transaction(async () => {
       const keys = Object.keys(fields),
         values = Object.values(fields);
       if (existing) {
-        current(kind, d);
+        await current(kind, d);
         id = existing.id;
-        run(
+        await run(
           `UPDATE ${kind} SET ${keys.map((key) => `${key}=?`).join(',')},revision=revision+1 WHERE id=?`,
           ...values,
           id,
         );
       } else {
-        if (one(`SELECT count(*) AS n FROM ${kind}`).n >= limits[kind])
+        if ((await one(`SELECT count(*) AS n FROM ${kind}`)).n >= limits[kind])
           throw new Problem('Content limit reached.');
         // Keep identities stable after deletion, including for an editor still open in another tab.
-        id = one(
-          `SELECT max(value)+1 AS id FROM (SELECT coalesce(max(id),0) AS value FROM ${kind} UNION ALL SELECT coalesce(max(target),0) FROM audit WHERE kind=?)`,
-          kind,
+        id = (
+          await one(
+            `SELECT max(value)+1 AS id FROM (SELECT coalesce(max(id),0) AS value FROM ${kind} UNION ALL SELECT coalesce(max(target),0) FROM audit WHERE kind=?)`,
+            kind,
+          )
         ).id;
-        run(
+        await run(
           `INSERT INTO ${kind}(id,${keys.join(',')},created) VALUES(?,${keys.map(() => '?').join(',')},?)`,
           id,
           ...values,
           now(),
         );
       }
-      audit(me, 'save', kind, id);
+      await audit(me, 'save', kind, id);
     });
   } catch (error) {
     if (uploaded) await discardManagedMedia(uploaded);

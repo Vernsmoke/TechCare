@@ -1,11 +1,12 @@
 import sharp from 'sharp';
 import { randomBytes } from 'node:crypto';
-import { mkdir, writeFile, readFile, unlink } from 'node:fs/promises';
+import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { dataDir, one, run, now, transaction } from '../config/db.mjs';
 import { Problem, member } from '../middleware/auth.mjs';
+import { getObject, putObject, removeObject } from './object-storage.mjs';
 const execute = promisify(execFile);
 export async function saveMedia(data, owner, access, video = false, logo = false) {
   if (typeof data !== 'string') throw new Problem('Choose a file to upload.');
@@ -17,7 +18,8 @@ export async function saveMedia(data, owner, access, video = false, logo = false
   let buffer = Buffer.from(match[2], 'base64');
   if (buffer.toString('base64') !== match[2] || buffer.length > (video ? 20000000 : 3000000))
     throw new Problem(video ? 'Video exceeds 20 MB.' : 'Image exceeds 3 MB.');
-  const used = one('SELECT coalesce(sum(bytes),0) AS bytes FROM media WHERE owner=?', owner).bytes;
+  const used = (await one('SELECT coalesce(sum(bytes),0) AS bytes FROM media WHERE owner=?', owner))
+    .bytes;
   if (used + buffer.length > 100000000)
     throw new Problem('Your upload allowance has been reached. Contact the project team.', 413);
   const dir = join(dataDir(), 'media');
@@ -87,35 +89,47 @@ export async function saveMedia(data, owner, access, video = false, logo = false
     }
   }
   const name = `${randomBytes(20).toString('hex')}.${ext}`;
-  await writeFile(join(dir, name), buffer);
+  await putObject(`media/${name}`, buffer, mime);
   try {
-    transaction(() => {
+    await transaction(async () => {
       if (
-        one('SELECT coalesce(sum(bytes),0) AS bytes FROM media WHERE owner=?', owner).bytes +
+        (await one('SELECT coalesce(sum(bytes),0) AS bytes FROM media WHERE owner=?', owner))
+          .bytes +
           buffer.length >
           100000000 ||
-        one('SELECT coalesce(sum(bytes),0) AS bytes FROM media').bytes + buffer.length > 1000000000
+        (await one('SELECT coalesce(sum(bytes),0) AS bytes FROM media')).bytes + buffer.length >
+          1000000000
       )
         throw new Problem(
           'The upload storage allowance has been reached. Contact the project team.',
           413,
         );
-      run('INSERT INTO media VALUES(?,?,?,?,?,?)', name, owner, access, mime, buffer.length, now());
+      await run(
+        'INSERT INTO media VALUES(?,?,?,?,?,?)',
+        name,
+        owner,
+        access,
+        mime,
+        buffer.length,
+        now(),
+      );
     });
   } catch (error) {
-    await unlink(join(dir, name)).catch(() => {});
+    await removeObject(`media/${name}`).catch((storageError) => {
+      console.error('TechCare uploaded media cleanup failed:', storageError?.name || 'Error');
+    });
     throw error;
   }
   return `/api/media/${name}`;
 }
 export async function readMedia(name, viewer) {
   if (!/^[a-f0-9]{40}\.(webp|mp4|webm)$/.test(name)) throw new Problem('Media not found.', 404);
-  const asset = one('SELECT * FROM media WHERE name=?', name);
+  const asset = await one('SELECT * FROM media WHERE name=?', name);
   if (!asset) throw new Problem('Media not found.', 404);
   if (asset.access === 'managed') {
     const url = `/api/media/${name}`;
-    const published = one(
-      "SELECT 1 FROM resources WHERE (url=? OR cover=?) AND status='published' UNION ALL SELECT 1 FROM booths WHERE image=? AND status='published' UNION ALL SELECT 1 FROM guides,json_each(guides.images) j WHERE json_extract(j.value,'$.url')=? AND status='published' LIMIT 1",
+    const published = await one(
+      `SELECT 1 FROM resources WHERE (url=? OR cover=?) AND status='published' UNION ALL SELECT 1 FROM booths WHERE image=? AND status='published' UNION ALL SELECT 1 FROM guides WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} AND status='published' LIMIT 1`,
       url,
       url,
       url,
@@ -124,7 +138,7 @@ export async function readMedia(name, viewer) {
     if (!published && viewer?.role !== 'admin') throw new Problem('Media not available.', 403);
   }
   if (asset.access === 'announcement') {
-    const announcement = one(
+    const announcement = await one(
       'SELECT status FROM announcements WHERE image=?',
       `/api/media/${name}`,
     );
@@ -132,7 +146,7 @@ export async function readMedia(name, viewer) {
       throw new Problem('Media not available.', 403);
   }
   if (asset.access === 'question') {
-    const post = one('SELECT user_id,status FROM posts WHERE photo=?', `/api/media/${name}`);
+    const post = await one('SELECT user_id,status FROM posts WHERE photo=?', `/api/media/${name}`);
     if (
       !post ||
       (post.status !== 'published' &&
@@ -142,7 +156,7 @@ export async function readMedia(name, viewer) {
       throw new Problem('Media not available.', 403);
   }
   if (asset.access === 'comment') {
-    const row = one(
+    const row = await one(
       `SELECT c.user_id,c.status,c.deleted,p.status AS post_status,
       coalesce(root.status,'published') AS root_status FROM comments c JOIN posts p ON p.id=c.post_id
       LEFT JOIN comments root ON root.id=c.root_id WHERE c.photo=?`,
@@ -162,8 +176,8 @@ export async function readMedia(name, viewer) {
       throw new Problem('Media not available.', 403);
   }
   if (asset.access === 'lost') {
-    const row = one(
-      'SELECT l.user_id,l.status FROM lost_found l,json_each(l.photos) j WHERE j.value=?',
+    const row = await one(
+      `SELECT l.user_id,l.status FROM lost_found l WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(l.photos) j WHERE j.value=?)'}`,
       `/api/media/${name}`,
     );
     if (
@@ -177,14 +191,16 @@ export async function readMedia(name, viewer) {
       throw new Problem('Media not available.', 403);
   }
   if (asset.access === 'profile') {
-    const owner = one('SELECT * FROM users WHERE id=?', asset.owner);
-    if (!owner || !member(owner, viewer).avatar || owner.avatar !== `/api/media/${name}`)
+    const owner = await one('SELECT * FROM users WHERE id=?', asset.owner);
+    if (!owner || !(await member(owner, viewer)).avatar || owner.avatar !== `/api/media/${name}`)
       throw new Problem('Media not available.', 403);
   }
   try {
-    return { buffer: await readFile(join(dataDir(), 'media', name)), mime: asset.mime };
-  } catch {
-    throw new Problem('Media not found.', 404);
+    return { buffer: await getObject(`media/${name}`), mime: asset.mime };
+  } catch (error) {
+    if (error?.code === 'ENOENT' || error?.name === 'NoSuchKey')
+      throw new Problem('Media not found.', 404);
+    throw error;
   }
 }
 
@@ -192,29 +208,32 @@ export async function discardQuestionMedia(url, owner) {
   const name = url.replace('/api/media/', '');
   if (!/^[a-f0-9]{40}\.webp$/.test(name)) return;
   // Only remove an unattached upload belonging to this failed submission.
-  if (one('SELECT 1 FROM posts WHERE photo=?', url)) return;
-  const result = run(
+  if (await one('SELECT 1 FROM posts WHERE photo=?', url)) return;
+  const result = await run(
     "DELETE FROM media WHERE name=? AND owner=? AND access='question'",
     name,
     owner,
   );
-  if (result.changes) await unlink(join(dataDir(), 'media', name)).catch(() => {});
+  if (result.changes) await removeObject(`media/${name}`);
 }
 
 export async function discardAnnouncementMedia(url) {
   const name = url.replace('/api/media/', '');
-  if (!/^[a-f0-9]{40}\.webp$/.test(name) || one('SELECT 1 FROM announcements WHERE image=?', url))
+  if (
+    !/^[a-f0-9]{40}\.webp$/.test(name) ||
+    (await one('SELECT 1 FROM announcements WHERE image=?', url))
+  )
     return;
-  const result = run("DELETE FROM media WHERE name=? AND access='announcement'", name);
-  if (result.changes) await unlink(join(dataDir(), 'media', name)).catch(() => {});
+  const result = await run("DELETE FROM media WHERE name=? AND access='announcement'", name);
+  if (result.changes) await removeObject(`media/${name}`);
 }
 
 export async function discardManagedMedia(url) {
   const name = url.replace('/api/media/', '');
   if (!/^[a-f0-9]{40}\.(webp|mp4|webm)$/.test(name)) return;
   if (
-    one(
-      "SELECT 1 FROM resources WHERE url=? OR cover=? UNION ALL SELECT 1 FROM booths WHERE image=? UNION ALL SELECT 1 FROM settings WHERE value=? UNION ALL SELECT 1 FROM guides,json_each(guides.images) j WHERE json_extract(j.value,'$.url')=? LIMIT 1",
+    await one(
+      `SELECT 1 FROM resources WHERE url=? OR cover=? UNION ALL SELECT 1 FROM booths WHERE image=? UNION ALL SELECT 1 FROM settings WHERE value=? UNION ALL SELECT 1 FROM guides WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} LIMIT 1`,
       url,
       url,
       url,
@@ -223,25 +242,25 @@ export async function discardManagedMedia(url) {
     )
   )
     return;
-  const result = run("DELETE FROM media WHERE name=? AND access='managed'", name);
-  if (result.changes) await unlink(join(dataDir(), 'media', name)).catch(() => {});
+  const result = await run("DELETE FROM media WHERE name=? AND access='managed'", name);
+  if (result.changes) await removeObject(`media/${name}`);
 }
 
 export async function discardCommunityMedia(url, owner) {
   const name = url.replace('/api/media/', '');
   if (!/^[a-f0-9]{40}\.webp$/.test(name)) return;
   if (
-    one(
-      'SELECT 1 FROM comments WHERE photo=? UNION ALL SELECT 1 FROM lost_found,json_each(photos) j WHERE j.value=? LIMIT 1',
+    await one(
+      `SELECT 1 FROM comments WHERE photo=? UNION ALL SELECT 1 FROM lost_found WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(lost_found.photos) j WHERE j.value=?)'} LIMIT 1`,
       url,
       url,
     )
   )
     return;
-  const result = run(
+  const result = await run(
     "DELETE FROM media WHERE name=? AND owner=? AND access IN ('comment','lost')",
     name,
     owner,
   );
-  if (result.changes) await unlink(join(dataDir(), 'media', name)).catch(() => {});
+  if (result.changes) await removeObject(`media/${name}`);
 }

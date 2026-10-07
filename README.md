@@ -6,7 +6,7 @@ The project includes the updated blue design, larger text, campus day/night back
 
 ## Run locally
 
-Requires Node.js 24 or later. The project uses Next.js 16, React 19, TypeScript, SQLite through `node:sqlite`, Radix Dialog, Phosphor icons, Sharp, and Nodemailer.
+Requires Node.js 24 or later. The project uses Next.js 16, React 19, TypeScript, MySQL through `mysql2/promise` in production, a `node:sqlite` adapter for local/test use, Radix Dialog, Phosphor icons, Sharp, and Nodemailer.
 
 ```powershell
 npm ci
@@ -30,7 +30,7 @@ npm run create-admin
 
 The password input is hidden. Members register through Create Account, verify, and sign in separately. An administrator can then assign moderator roles.
 
-The app writes its local SQLite database and protected uploads to ignored `data/`. Configure a different persistent directory with `TECHCARE_DATA_DIR`. No source data from the original Python project is used automatically.
+Local development and tests use a SQLite database and protected uploads in ignored `data/`; configure another local directory with `TECHCARE_DATA_DIR`. Production must use MySQL over TLS and a private Backblaze B2 bucket. Before production startup, create the configured database, apply `backend/schema/mysql.sql`, configure `TECHCARE_JWT_SECRET` (at least 32 bytes), the `TECHCARE_DB_*` connection settings including `TECHCARE_DB_SSL=1`, all `TECHCARE_B2_*` values, an approved HTTPS `TECHCARE_ORIGIN`, and secure cookies. `npm start` fails fast when required production settings are missing. See [migration and rollback](docs/MIGRATION.md) for the one-time SQLite-to-MySQL cutover utility. No source data from the original Python project is used automatically.
 
 ## Project structure
 
@@ -53,7 +53,7 @@ TechCare/
 │     ├─ services/             API requests and upload progress
 │     └─ utils/                browser-safe content and assistant helpers
 ├─ backend/src/
-│  ├─ config/                  SQLite connection, schema, and migrations
+│  ├─ config/                  MySQL pool, SQLite compatibility adapter, and migrations
 │  ├─ controllers/             API request handling
 │  ├─ middleware/              authentication and authorization
 │  ├─ services/                domain, media, mail, and business logic
@@ -61,7 +61,7 @@ TechCare/
 ├─ shared/src/                 types, consent, defaults, and image metadata
 ├─ tests/                      API and domain tests
 ├─ scripts/                    build, migration, and verification scripts
-└─ data/                       ignored database and protected uploads
+└─ data/                       ignored local SQLite database and protected uploads
 ```
 
 The root `package.json` owns the project commands, dependencies, and lockfile. Run all npm commands from this root folder. `frontend/README.md`, `backend/README.md`, and `shared/README.md` describe each area’s import boundaries. Build output lives in `frontend/.next-production/`, with development and browser-test output in `frontend/.next/` and `frontend/.next-e2e/`.
@@ -74,7 +74,7 @@ The root `package.json` owns the project commands, dependencies, and lockfile. R
 - Inline form validation for required fields, email addresses, HTTPS links, length limits, verification codes, and file types/sizes, with keyboard focus on the first invalid field. Server validation remains enforced.
 - A bottom-right help chatbot covering app features, accounts, friends, messaging, privacy, moderation, and device guides, with basic follow-up steps and community/support links. Uses editable built-in content, with no personal ChatGPT account, AI API, or AI usage fees. Chat is temporary and is cleared on refresh or account changes.
 - Separate account creation, verification, sign-in, verification recovery, password recovery, and reset dialogs.
-- Persistent accounts, hashed passwords and sessions, server-side roles, dashboard, profile editing, and private avatars.
+- Persistent accounts, hashed passwords, revocable JWT sessions, server-side roles, dashboard, profile editing, and private avatars.
 - Searchable and paginated discussions, moderated questions/member replies, immediate staff replies, and atomic Approve & Answer.
 - A [discussion feed with dedicated question pages](docs/DISCUSSIONS.md), inline comments, question/comment upvotes and downvotes, and Newest/Top sorting.
 - Optional question photos from upload or live camera, with preview, retake, and removal. Photos follow question moderation and are public only after approval. Live camera needs browser permission and HTTPS or localhost; a device photo-picker fallback is available.

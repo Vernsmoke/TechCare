@@ -12,7 +12,15 @@ For real mail set `TECHCARE_SMTP_HOST`, `TECHCARE_SMTP_PORT` (587 default), `TEC
 
 ## Production process
 
-`npm run build` produces the Next server build. `npm start` checks that classroom mode is off, an HTTPS origin is set, and secure cookies are enabled before binding Next to loopback behind an approved edge. These checks must also be respected by service managers; bypassing the wrapper is not the deployment procedure. The API independently refuses production classroom mode.
+`npm run build` produces the Next server build. `npm start` checks that classroom mode is off, an HTTPS origin is set, secure cookies are enabled, the production MySQL connection settings are complete, and private object storage is configured before binding Next to loopback behind an approved edge. These checks must also be respected by service managers; bypassing the wrapper is not the deployment procedure. The API independently refuses production classroom mode. Production never falls back to SQLite.
+
+Create the MySQL 8.0.16+ database and grant the application account only the required database privileges. Apply `backend/schema/mysql.sql` to that selected database before deploying the app. Configure `TECHCARE_DB_HOST`, `TECHCARE_DB_PORT` (3306 default), `TECHCARE_DB_NAME`, `TECHCARE_DB_USER`, `TECHCARE_DB_PASSWORD`, and `TECHCARE_DB_SSL=1` (required for production). `TECHCARE_DB_POOL_SIZE` (10 default, 1–100) and `TECHCARE_DB_CONNECT_TIMEOUT_MS` (10,000 default) tune the pool. TLS certificate verification is enabled by default.
+
+Create a private Backblaze B2 bucket and a least-privilege application key for that bucket. Set `TECHCARE_B2_BUCKET`, `TECHCARE_B2_ENDPOINT` (HTTPS S3-compatible endpoint), `TECHCARE_B2_REGION`, `TECHCARE_B2_KEY_ID`, and `TECHCARE_B2_APPLICATION_KEY`. Set `TECHCARE_JWT_SECRET` to a randomly generated secret of at least 32 bytes and keep it stable across application instances and restarts so issued tokens remain verifiable. Keep all environment files and credentials out of source control. The DB service must provide durable backups, retention, monitoring, and recovery separately from the application process.
+
+Production startup also requires `TECHCARE_SMTP_HOST` and `TECHCARE_SMTP_FROM` so account verification and recovery mail can be delivered. Configure `TECHCARE_SMTP_PORT` (587 by default) and both SMTP user/password values when the provider requires authentication. SMTP uses STARTTLS.
+
+For an existing SQLite pilot, follow the one-time export, dry-run, cutover, and rollback procedure in [Migration and rollback](MIGRATION.md). Do not run the importer against a non-empty MySQL application database.
 
 The HTTPS edge must enforce approved hosts, reject or replace client-supplied forwarding headers, restrict application access, enforce request-size and connection limits, and own certificate renewal/HSTS policy. Set `TECHCARE_ORIGIN` to the exact approved public origin and `TECHCARE_SECURE_COOKIES=1`. No edge, domain, DNS, certificate, monitoring account, or server has been provisioned here.
 
@@ -21,7 +29,7 @@ The HTTPS edge must enforce approved hosts, reject or replace client-supplied fo
 - Approved audience, affiliation policy, domain, logo/visual identity, booth date/venue/hours, and launch authorization.
 - Named project, moderation, IT, and privacy owners with coverage and escalation contacts.
 - Approved privacy notice; retention/deletion/anonymization rules; message-history/report handling; blocking, appeals, and incident procedures.
-- A supported durable storage/deployment plan. Move to the planned IT-managed PostgreSQL architecture before multi-worker or horizontal scaling.
+- An IT-managed durable MySQL service with tested backup/restore, least-privilege access, monitoring, and connection-pool capacity appropriate for the deployment.
 - A trusted-edge per-source rate-limit policy, load targets, capacity testing, and tuning. Current aggregate/per-account limits are single-node pilot defaults.
 - Storage monitoring and reviewed cleanup for replaced/orphaned assets, report retention, and data lifecycle. Quotas alone are not a complete operational policy.
 - Validated video processing, caption/transcript workflow, media licensing checks, and resource processing isolation appropriate to the final audience.

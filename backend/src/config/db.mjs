@@ -1,7 +1,113 @@
 import { DatabaseSync } from 'node:sqlite';
 import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { guides, defaultBooth } from '../../../shared/src/content-defaults.mjs';
+
+const mysqlContext = new AsyncLocalStorage();
+let mysqlPool;
+let sqliteAsyncBusy = false;
+let sqliteAsyncTail = Promise.resolve();
+const useMySQL = () =>
+  process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql';
+
+export function assertDatabaseConfig() {
+  if (process.env.NODE_ENV === 'production' && process.env.TECHCARE_DB_DRIVER === 'sqlite')
+    throw new Error('Production requires MySQL; SQLite is supported only for local and test use.');
+  if (process.env.NODE_ENV !== 'production' && process.env.TECHCARE_DB_DRIVER !== 'mysql') return;
+  const missing = ['HOST', 'NAME', 'USER', 'PASSWORD'].filter(
+    (key) => !process.env[`TECHCARE_DB_${key}`],
+  );
+  if (missing.length)
+    throw new Error(
+      `Production MySQL configuration is incomplete: set ${missing.map((key) => `TECHCARE_DB_${key}`).join(', ')}.`,
+    );
+  const port = Number(process.env.TECHCARE_DB_PORT || 3306);
+  if (!Number.isInteger(port) || port < 1 || port > 65535)
+    throw new Error('TECHCARE_DB_PORT must be a valid TCP port.');
+  const poolSize = Number(process.env.TECHCARE_DB_POOL_SIZE || 10);
+  if (!Number.isInteger(poolSize) || poolSize < 1 || poolSize > 100)
+    throw new Error('TECHCARE_DB_POOL_SIZE must be an integer from 1 to 100.');
+  const connectTimeout = Number(process.env.TECHCARE_DB_CONNECT_TIMEOUT_MS || 10000);
+  if (!Number.isInteger(connectTimeout) || connectTimeout < 1000 || connectTimeout > 120000)
+    throw new Error('TECHCARE_DB_CONNECT_TIMEOUT_MS must be an integer from 1000 to 120000.');
+  if (process.env.NODE_ENV === 'production' && process.env.TECHCARE_DB_SSL !== '1')
+    throw new Error('Production MySQL connections require TECHCARE_DB_SSL=1.');
+}
+
+async function pool() {
+  assertDatabaseConfig();
+  if (!mysqlPool) {
+    const mysql = await import('mysql2/promise');
+    mysqlPool = mysql.createPool({
+      host: process.env.TECHCARE_DB_HOST,
+      port: Number(process.env.TECHCARE_DB_PORT || 3306),
+      database: process.env.TECHCARE_DB_NAME,
+      user: process.env.TECHCARE_DB_USER,
+      password: process.env.TECHCARE_DB_PASSWORD,
+      connectionLimit: Number(process.env.TECHCARE_DB_POOL_SIZE || 10),
+      connectTimeout: Number(process.env.TECHCARE_DB_CONNECT_TIMEOUT_MS || 10000),
+      waitForConnections: true,
+      queueLimit: 0,
+      enableKeepAlive: true,
+      charset: 'utf8mb4',
+      timezone: 'Z',
+      ssl:
+        process.env.TECHCARE_DB_SSL === '1'
+          ? {
+              rejectUnauthorized: process.env.TECHCARE_DB_SSL_REJECT_UNAUTHORIZED !== '0',
+            }
+          : undefined,
+      supportBigNumbers: true,
+      bigNumberStrings: false,
+      decimalNumbers: true,
+      multipleStatements: false,
+    });
+  }
+  return mysqlPool;
+}
+export const getMySQLPool = pool;
+export async function closeMySQLPool() {
+  if (mysqlPool) await mysqlPool.end();
+  mysqlPool = undefined;
+}
+export async function assertDatabaseReady() {
+  assertDatabaseConfig();
+  try {
+    const latest = await one('SELECT version FROM migrations WHERE version=? LIMIT 1', 7);
+    if (!latest)
+      throw new Error(
+        'MySQL schema is not at version 7. Apply backend/schema/mysql.sql before startup.',
+      );
+  } catch (error) {
+    if (error.message?.includes('MySQL schema is not at version 7')) throw error;
+    if (error.code === 'ER_NO_SUCH_TABLE')
+      throw new Error('MySQL schema is missing. Apply backend/schema/mysql.sql before startup.');
+    throw new Error(
+      `Unable to connect to the configured production MySQL database: ${error.code || error.name}.`,
+    );
+  }
+}
+
+export function mysqlSQL(sql) {
+  return sql
+    .replace(/\bINSERT\s+OR\s+IGNORE\s+INTO\b/gi, 'INSERT IGNORE INTO')
+    .replace(/\bON\s+CONFLICT\s*\([^)]*\)\s+DO\s+UPDATE\s+SET\b/gi, 'ON DUPLICATE KEY UPDATE')
+    .replace(/\bON\s+CONFLICT\s*\([^)]*\)\s+DO\s+NOTHING\b/gi, '')
+    .replace(/\bON\s+CONFLICT\s*\(\s*key\s*\)\s+DO\s+UPDATE\s+SET\b/gi, 'ON DUPLICATE KEY UPDATE')
+    .replace(/\bexcluded\.([A-Za-z_][A-Za-z0-9_]*)/gi, 'VALUES($1)')
+    .replace(/\bkey\b(?!\s+UPDATE)/gi, '`key`')
+    .replace(/\bvalue\b/gi, '`value`')
+    .replace(/\s+COLLATE\s+NOCASE\b/gi, '');
+}
+
+async function mysqlQuery(sql, args, mode) {
+  const connection = mysqlContext.getStore() || (await pool());
+  const [result] = await connection.execute(mysqlSQL(sql), args);
+  if (mode === 'all') return result;
+  if (mode === 'one') return result[0];
+  return { changes: result.affectedRows, lastInsertRowid: result.insertId };
+}
 
 export const dataDir = () =>
   resolve(/* turbopackIgnore: true */ process.env.TECHCARE_DATA_DIR || './data');
@@ -35,6 +141,10 @@ CREATE INDEX IF NOT EXISTS session_user ON sessions(user_id);
 // Recheck cached connections after a development module reload introduces a migration.
 const migratedConnections = new WeakSet();
 export function db() {
+  if (useMySQL())
+    throw new Error(
+      'db() is the SQLite compatibility API and is unavailable with the MySQL adapter.',
+    );
   const path = resolve(dataDir(), 'techcare.sqlite3');
   globalThis.__techcareDBs ||= new Map();
   const cached = globalThis.__techcareDBs.get(path);
@@ -223,23 +333,77 @@ export function db() {
   return con;
 }
 export const one = (sql, ...args) =>
-  db()
-    .prepare(sql)
-    .get(...args);
+  useMySQL()
+    ? mysqlQuery(sql, args, 'one')
+    : db()
+        .prepare(sql)
+        .get(...args);
 export const all = (sql, ...args) =>
-  db()
-    .prepare(sql)
-    .all(...args);
+  useMySQL()
+    ? mysqlQuery(sql, args, 'all')
+    : db()
+        .prepare(sql)
+        .all(...args);
 export const run = (sql, ...args) =>
-  db()
-    .prepare(sql)
-    .run(...args);
+  useMySQL()
+    ? mysqlQuery(sql, args, 'run')
+    : db()
+        .prepare(sql)
+        .run(...args);
 export const now = () => Math.floor(Date.now() / 1000);
 export function transaction(fn) {
+  if (useMySQL()) {
+    return (async () => {
+      const con = await (await pool()).getConnection();
+      try {
+        await con.beginTransaction();
+        const result = await mysqlContext.run(con, fn);
+        await con.commit();
+        return result;
+      } catch (error) {
+        await con.rollback();
+        throw error;
+      } finally {
+        con.release();
+      }
+    })();
+  }
+  if (sqliteAsyncBusy) {
+    const queued = sqliteAsyncTail.then(() => sqliteTransaction(fn));
+    sqliteAsyncTail = queued.then(
+      () => undefined,
+      () => undefined,
+    );
+    return queued;
+  }
+  return sqliteTransaction(fn);
+}
+function sqliteTransaction(fn) {
   const con = db();
   con.exec('BEGIN IMMEDIATE');
   try {
     const result = fn();
+    if (result && typeof result.then === 'function') {
+      sqliteAsyncBusy = true;
+      const pending = result.then(
+        (value) => {
+          con.exec('COMMIT');
+          return value;
+        },
+        (error) => {
+          con.exec('ROLLBACK');
+          throw error;
+        },
+      );
+      const completed = pending.finally(() => {
+        sqliteAsyncBusy = false;
+      });
+      sqliteAsyncTail = completed.then(
+        () => undefined,
+        () => undefined,
+      );
+      return completed;
+    }
     con.exec('COMMIT');
     return result;
   } catch (error) {
