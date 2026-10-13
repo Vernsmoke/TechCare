@@ -2,9 +2,17 @@ import nextEnv from '@next/env';
 import { createInterface } from 'node:readline/promises';
 import { Writable } from 'node:stream';
 import { passwordHash } from '../backend/src/middleware/auth.mjs';
-import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
+import {
+  run,
+  now,
+  closeDatabases,
+  closeMySQLPool,
+  assertDatabaseReady,
+} from '../backend/src/config/db.mjs';
 import { email, password, text } from '../backend/src/validations/validation.mjs';
 nextEnv.loadEnvConfig(process.cwd());
+if (process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql')
+  await assertDatabaseReady();
 let muted = false;
 const output = new Writable({
   write(chunk, encoding, callback) {
@@ -21,7 +29,7 @@ try {
   const pw = password(await input.question(''));
   muted = false;
   process.stdout.write('\n');
-  run(
+  await run(
     "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
     name,
     address,
@@ -36,4 +44,5 @@ try {
   muted = false;
   input.close();
   closeDatabases();
+  await closeMySQLPool();
 }

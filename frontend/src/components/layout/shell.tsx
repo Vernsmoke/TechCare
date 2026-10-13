@@ -76,7 +76,8 @@ export function Shell({
     [notice, setNotice] = useState(''),
     [menu, setMenu] = useState(false),
     [hero, setHero] = useState('/static/techcare-hero.webp'),
-    [classroom, setClassroom] = useState(false);
+    [classroom, setClassroom] = useState(false),
+    [realtimeEnabled, setRealtimeEnabled] = useState(false);
   const path = usePathname(),
     router = useRouter();
   const refresh = () => setVersion((n) => n + 1);
@@ -101,13 +102,108 @@ export function Shell({
     };
   }, []);
   useEffect(() => {
+    if (!realtimeEnabled) return;
+    let stopped = false;
+    let socket: WebSocket | undefined;
+    let retryTimer = 0;
+    let retryCount = 0;
+    let connectedOnce = false;
+
+    const connect = () => {
+      if (
+        stopped ||
+        document.hidden ||
+        socket?.readyState === WebSocket.CONNECTING ||
+        socket?.readyState === WebSocket.OPEN
+      )
+        return;
+      const address = new URL('/ws', window.location.href);
+      address.protocol = address.protocol === 'https:' ? 'wss:' : 'ws:';
+      const connection = new WebSocket(address);
+      socket = connection;
+      connection.onopen = () => {
+        retryCount = 0;
+        if (connectedOnce) window.dispatchEvent(new Event('techcare-invalidate'));
+        connectedOnce = true;
+      };
+      connection.onmessage = (event) => {
+        try {
+          const message: unknown = JSON.parse(event.data);
+          if (
+            !message ||
+            typeof message !== 'object' ||
+            !('type' in message) ||
+            !['invalidate', 'session', 'settings'].includes(String(message.type))
+          )
+            throw new Error('Unexpected real-time event.');
+          window.dispatchEvent(new Event('techcare-invalidate'));
+          if (message.type === 'session')
+            window.dispatchEvent(new Event('techcare-session-refresh'));
+          if (message.type === 'settings')
+            window.dispatchEvent(new Event('techcare-settings-refresh'));
+        } catch (error) {
+          console.error('TechCare received an invalid real-time event:', error);
+          connection.close(1002, 'Invalid event.');
+        }
+      };
+      connection.onclose = () => {
+        if (socket !== connection) return;
+        socket = undefined;
+        if (stopped || document.hidden) return;
+        const delay = Math.min(30_000, 3_000 * 2 ** Math.min(retryCount++, 4));
+        retryTimer = window.setTimeout(connect, delay * (0.8 + Math.random() * 0.4));
+      };
+      connection.onerror = () => connection.close();
+    };
+    const resume = () => {
+      if (!document.hidden) {
+        window.clearTimeout(retryTimer);
+        if (!socket || socket.readyState === WebSocket.CLOSED) connect();
+      }
+    };
+    document.addEventListener('visibilitychange', resume);
+    window.addEventListener('online', resume);
+    connect();
+    return () => {
+      stopped = true;
+      window.clearTimeout(retryTimer);
+      document.removeEventListener('visibilitychange', resume);
+      window.removeEventListener('online', resume);
+      socket?.close(1000, 'Page closed.');
+    };
+  }, [realtimeEnabled]);
+  useEffect(() => {
+    const refreshSession = () => {
+      api<{ user: User | null }>('me')
+        .then((result) => setUserState(result.user))
+        .catch(() => setNotice('Could not refresh your session. Your current page is still available.'));
+    };
+    const refreshSettings = () => {
+      api<{ hero: string; classroom: boolean; logo: string; realtime: boolean }>('settings')
+        .then((result) => {
+          setHero(result.hero);
+          setClassroom(result.classroom);
+          setLogo(result.logo || '');
+          setRealtimeEnabled(result.realtime);
+        })
+        .catch(() => setNotice('Could not refresh app settings. Please try again.'));
+    };
+    window.addEventListener('techcare-session-refresh', refreshSession);
+    window.addEventListener('techcare-settings-refresh', refreshSettings);
+    return () => {
+      window.removeEventListener('techcare-session-refresh', refreshSession);
+      window.removeEventListener('techcare-settings-refresh', refreshSettings);
+    };
+  }, []);
+  useEffect(() => {
     let alive = true;
-    api<{ hero: string; classroom: boolean; logo: string }>('settings')
+    api<{ hero: string; classroom: boolean; logo: string; realtime: boolean }>('settings')
       .then((r) => {
         if (alive) {
           setHero(r.hero);
           setClassroom(r.classroom);
           setLogo(r.logo || '');
+          setRealtimeEnabled(r.realtime);
         }
       })
       .catch(() => {});

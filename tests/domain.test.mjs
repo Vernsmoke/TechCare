@@ -10,6 +10,8 @@ import { handle } from '../backend/src/controllers/api.mjs';
 import { all, one, run, now, closeDatabases, transaction } from '../backend/src/config/db.mjs';
 import { passwordHash, passwordOK, assertConfig } from '../backend/src/middleware/auth.mjs';
 const directory = await mkdtemp(join(tmpdir(), 'techcare-test-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = directory;
 process.env.TECHCARE_DEV_VERIFY = '1';
 process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3000';
@@ -331,23 +333,22 @@ try {
       );
     });
     await t.test(
-      'member replies need review, staff replies publish immediately, and search excludes rejected content',
+      'member and staff replies publish immediately, and search excludes rejected content',
       async () => {
+        const memberComment = await call(b, 'comments', {
+          post_id: postId,
+          body: 'I have tried clearing the startup apps.',
+        });
+        assert.equal(memberComment.status, 201);
         assert.equal(
-          (
-            await call(b, 'comments', {
-              post_id: postId,
-              body: 'I have tried clearing the startup apps.',
-            })
-          ).status,
-          201,
+          one('SELECT status FROM comments WHERE id=?', memberComment.data.id).status,
+          'published',
         );
-        assert.equal((await call(guest, `comments?post=${postId}`)).data.comments.length, 1);
-        const pending = (await call(a, 'queue')).data.comments[0];
-        assert.equal(
-          (await call(a, 'moderate', { kind: 'comment', id: pending.id, status: 'published' }))
-            .status,
-          200,
+        assert.equal((await call(guest, `comments?post=${postId}`)).data.comments.length, 2);
+        assert.ok(
+          !(await call(a, 'queue')).data.comments.some(
+            (comment) => comment.id === memberComment.data.id,
+          ),
         );
         assert.equal(
           (

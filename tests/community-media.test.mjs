@@ -10,6 +10,8 @@ import { run, one, now, closeDatabases } from '../backend/src/config/db.mjs';
 import { passwordHash } from '../backend/src/middleware/auth.mjs';
 
 const directory = await mkdtemp(join(tmpdir(), 'techcare-community-media-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = directory;
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3021');
@@ -144,7 +146,7 @@ try {
       entry.cover,
     );
   });
-  await test('comment photos require approval and notify the parent author only after publication', async () => {
+  await test('member comment photos publish immediately and notify the parent author', async () => {
     root = (
       await call(
         'comments',
@@ -160,10 +162,10 @@ try {
     assert.equal(result.status, 201);
     reply = result.data.id;
     const row = one('SELECT * FROM comments WHERE id=?', reply);
-    assert.equal(row.status, 'pending');
-    assert.equal((await call(row.photo.slice(5))).status, 403);
+    assert.equal(row.status, 'published');
+    assert.equal((await call(row.photo.slice(5))).status, 200);
     assert.equal((await call(row.photo.slice(5), null, sessions.member)).status, 200);
-    assert.equal((await call('notifications', null, sessions.admin)).data.notifications.length, 0);
+    assert.equal((await call('notifications', null, sessions.admin)).data.notifications.length, 1);
     assert.equal(
       (
         await call(
@@ -174,9 +176,6 @@ try {
       ).status,
       404,
     );
-    await call('moderate', { kind: 'comment', id: reply, status: 'published' }, sessions.admin);
-    assert.equal((await call(row.photo.slice(5))).status, 200);
-    assert.equal((await call('notifications', null, sessions.admin)).data.notifications.length, 1);
     const page = (await call('comments?post=1')).data;
     assert.equal(page.comments.length, 1);
     assert.equal(page.comments[0].replies, 1);
@@ -236,7 +235,7 @@ try {
       ).status,
       201,
     );
-    assert.equal(one('SELECT status FROM comments WHERE id=?', reply).status, 'pending');
+    assert.equal(one('SELECT status FROM comments WHERE id=?', reply).status, 'published');
     assert.equal(
       (
         await call(
@@ -247,7 +246,6 @@ try {
       ).status,
       409,
     );
-    await call('moderate', { kind: 'comment', id: reply, status: 'published' }, sessions.admin);
     assert.equal(
       (
         await call(

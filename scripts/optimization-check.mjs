@@ -9,6 +9,8 @@ import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const baseline = process.argv.includes('--baseline');
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-optimization-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 const adminToken = secret();
 const admin = run(

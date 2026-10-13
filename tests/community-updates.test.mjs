@@ -6,13 +6,16 @@ import { join } from 'node:path';
 import { handle } from '../backend/src/controllers/api.mjs';
 import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 import { CONSENT_COOKIE, CONSENT_VERSION } from '../shared/src/consent.mjs';
-import { digest } from '../backend/src/middleware/auth.mjs';
+import { digest, issueJWT } from '../backend/src/middleware/auth.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-community-updates-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 process.env.TECHCARE_DEV_VERIFY = '0';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3025');
 const accepted = `${CONSENT_COOKIE}=${CONSENT_VERSION}`;
+process.env.TECHCARE_JWT_SECRET = 'community-updates-test-secret-keep-outside-production';
 async function call(path, data, cookie = '', headers = {}) {
   const response = await handle(
     new Request(`${origin}/api/${path}`, {
@@ -58,11 +61,14 @@ try {
   });
 
   const time = now();
+  const tokens = new Map();
   for (const [id, name, role] of [
     [1, 'Admin Tester', 'admin'],
     [2, 'Moderator Tester', 'moderator'],
     [3, 'Member Tester', 'member'],
   ]) {
+    const token = issueJWT(id, time);
+    tokens.set(id, token);
     run(
       'INSERT INTO users(id,name,email,hash,role,verified,created) VALUES(?,?,?,?,?,1,?)',
       id,
@@ -74,15 +80,15 @@ try {
     );
     run(
       'INSERT INTO sessions(token_hash,user_id,expires) VALUES(?,?,?)',
-      digest(`session${id}`),
+      digest(token),
       id,
       time + 3600000,
     );
   }
-  const admin = `${accepted}; techcare=session1`;
+  const admin = `${accepted}; techcare=${tokens.get(1)}`;
   await test('moderator directory defaults to staff and searches members on the server with pagination', async () => {
     assert.equal(
-      (await call('admin/users', undefined, `${accepted}; techcare=session3`)).status,
+      (await call('admin/users', undefined, `${accepted}; techcare=${tokens.get(3)}`)).status,
       403,
     );
     const staff = await call('admin/users', undefined, admin);

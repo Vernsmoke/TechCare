@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { api } from '@/services/api';
 
 // A null path keeps optional UI from fetching before the user needs it.
@@ -7,7 +7,9 @@ export function useData<T>(path: string | null, version = 0, pollMs = 0) {
   const [data, setData] = useState<T | null>(null),
     [error, setError] = useState(''),
     [loading, setLoading] = useState(path !== null),
-    [retry, setRetry] = useState(0);
+    [retry, setRetry] = useState(0),
+    [realtimeVersion, setRealtimeVersion] = useState(0);
+  const previousPath = useRef(path);
   useEffect(() => {
     if (path === null) {
       setData(null);
@@ -15,9 +17,12 @@ export function useData<T>(path: string | null, version = 0, pollMs = 0) {
       setLoading(false);
       return;
     }
+    if (previousPath.current !== path) {
+      setData(null);
+      previousPath.current = path;
+    }
     const controller = new AbortController();
     setLoading(true);
-    setData(null);
     setError('');
     api<T>(path, undefined, controller.signal)
       .then((result) => {
@@ -30,7 +35,13 @@ export function useData<T>(path: string | null, version = 0, pollMs = 0) {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [path, version, retry]);
+  }, [path, version, retry, realtimeVersion]);
+  useEffect(() => {
+    if (path === null) return;
+    const invalidate = () => setRealtimeVersion((value) => value + 1);
+    window.addEventListener('techcare-invalidate', invalidate);
+    return () => window.removeEventListener('techcare-invalidate', invalidate);
+  }, [path]);
   useEffect(() => {
     if (path === null || !pollMs) return;
     let active = true;

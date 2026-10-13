@@ -447,8 +447,7 @@ export function DiscussionThread({ id }: { id: number }) {
                       postId={id}
                       done={(message) => {
                         setNotice(message);
-                        if (user.role !== 'member')
-                          setPage(Math.floor((comments.data?.rootCount || 0) / 20) + 1);
+                        setPage(Math.floor((comments.data?.rootCount || 0) / 20) + 1);
                         comments.reload();
                         result.reload();
                       }}
@@ -510,7 +509,6 @@ function CommentComposer({
   done: (message: string) => void;
   cancel?: () => void;
 }) {
-  const { user } = useTechCare();
   return (
     <Form
       submit={editing ? 'Save comment' : parent ? 'Send reply' : 'Send comment'}
@@ -545,9 +543,7 @@ function CommentComposer({
         </label>
       )}
       <p className="form-hint">
-        {user?.role === 'member'
-          ? 'Comments, photos, and edits appear after moderator approval.'
-          : 'Your comment will be published immediately.'}
+        Your comment will be published immediately. Use Report to flag inappropriate content.
       </p>
       {cancel && (
         <button className="text-button" type="button" onClick={cancel}>

@@ -9,6 +9,8 @@ import { run, one, now, closeDatabases } from '../backend/src/config/db.mjs';
 import { passwordHash } from '../backend/src/middleware/auth.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3017');
@@ -149,19 +151,47 @@ try {
     closeDatabases();
     assert.equal((await call('comments?post=1')).data.comments[0].score, -1);
   });
-  await test('member comments remain moderated while staff comments publish immediately', async () => {
+  await test('member and staff comments publish immediately while older pending comments stay hidden', async () => {
+    const memberComment = await call(
+      'comments',
+      { post_id: 1, body: 'A helpful member comment.' },
+      sessions.member,
+    );
+    assert.equal(memberComment.status, 201);
     assert.equal(
-      (await call('comments', { post_id: 1, body: 'A helpful member comment.' }, sessions.member))
-        .status,
+      one('SELECT status FROM comments WHERE id=?', memberComment.data.id).status,
+      'published',
+    );
+    let visible = (await call('comments?post=1')).data.comments;
+    assert.ok(visible.some((comment) => comment.id === memberComment.data.id));
+    assert.ok(!visible.some((comment) => comment.id === 2));
+    const revision = one(
+      'SELECT revision FROM comments WHERE id=?',
+      memberComment.data.id,
+    ).revision;
+    assert.equal(
+      (
+        await call(
+          'comments',
+          { id: memberComment.data.id, revision, body: 'An updated helpful member comment.' },
+          sessions.member,
+        )
+      ).status,
       201,
     );
-    assert.equal((await call('post?id=1')).data.post.replies, 1);
+    assert.equal(
+      one('SELECT status FROM comments WHERE id=?', memberComment.data.id).status,
+      'published',
+    );
+    visible = (await call('comments?post=1')).data.comments;
+    assert.ok(visible.some((comment) => comment.body === 'An updated helpful member comment.'));
+    assert.equal((await call('post?id=1')).data.post.replies, 2);
     assert.equal(
       (await call('comments', { post_id: 1, body: 'A published staff comment.' }, sessions.admin))
         .status,
       201,
     );
-    assert.equal((await call('post?id=1')).data.post.replies, 2);
+    assert.equal((await call('post?id=1')).data.post.replies, 3);
     run("UPDATE posts SET status='rejected' WHERE id=1");
     assert.equal((await call('comments?post=1')).status, 404);
     assert.equal(

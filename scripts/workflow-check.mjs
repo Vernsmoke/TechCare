@@ -9,6 +9,8 @@ import { join, resolve, relative, isAbsolute } from 'node:path';
 import { passwordHash } from '../backend/src/middleware/auth.mjs';
 import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-browser-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 const origin = 'http://127.0.0.1:3001',
   password = 'Synthetic-browser-check-2026';
@@ -22,7 +24,16 @@ run(
 closeDatabases();
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'dev', 'frontend', '--webpack', '--hostname', '127.0.0.1', '--port', '3001'],
+  [
+    'node_modules/next/dist/bin/next',
+    'dev',
+    'frontend',
+    '--webpack',
+    '--hostname',
+    '127.0.0.1',
+    '--port',
+    '3001',
+  ],
   {
     env: {
       ...process.env,

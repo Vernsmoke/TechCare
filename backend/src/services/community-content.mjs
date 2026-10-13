@@ -5,38 +5,42 @@ import { saveMedia, discardCommunityMedia } from './media.mjs';
 import { voteColumns } from './discussion.mjs';
 
 const staff = ['admin', 'moderator'];
-export function publishedComment(id) {
-  return one(
+export async function publishedComment(id) {
+  return await one(
     `SELECT c.* FROM comments c JOIN posts p ON p.id=c.post_id
     LEFT JOIN comments root ON root.id=c.root_id WHERE c.id=? AND c.status='published'
     AND p.status='published' AND (c.root_id IS NULL OR root.status='published')`,
     id,
   );
 }
-export function notifyReply(id) {
-  const comment = publishedComment(id);
+export async function notifyReply(id) {
+  const comment = await publishedComment(id);
   if (!comment || !comment.parent_id || comment.deleted) return;
-  const parent = one('SELECT user_id FROM comments WHERE id=?', comment.parent_id);
-  if (parent && parent.user_id !== comment.user_id && !blocked(parent.user_id, comment.user_id))
-    run(
+  const parent = await one('SELECT user_id FROM comments WHERE id=?', comment.parent_id);
+  if (
+    parent &&
+    parent.user_id !== comment.user_id &&
+    !(await blocked(parent.user_id, comment.user_id))
+  )
+    await run(
       'INSERT OR IGNORE INTO notifications(user_id,comment_id,created) VALUES(?,?,?)',
       parent.user_id,
       id,
       now(),
     );
 }
-export function listComments(url, me) {
+export async function listComments(url, me) {
   const post = v.id(url.searchParams.get('post')),
     page = v.page(url);
-  if (!one("SELECT 1 FROM posts WHERE id=? AND status='published'", post))
+  if (!(await one("SELECT 1 FROM posts WHERE id=? AND status='published'", post)))
     throw new Problem('Published discussion not found.', 404);
   const root = url.searchParams.get('root') ? v.id(url.searchParams.get('root')) : null;
   if (root) {
-    const target = publishedComment(root);
+    const target = await publishedComment(root);
     if (!target || target.post_id !== post || target.root_id)
       throw new Problem('Comment thread not found.', 404);
   }
-  const rows = all(
+  const rows = await all(
     `SELECT c.id,c.body,c.photo,c.parent_id,c.root_id,c.deleted,c.revision,c.created,
     c.user_id=? AS own,u.name,u.role,CASE WHEN u.visibility='private' THEN '' ELSE u.avatar END AS avatar,
     ${voteColumns('comment', 'c')},parentUser.name AS replyTo,
@@ -55,30 +59,32 @@ export function listComments(url, me) {
     comments: rows.slice(0, 20),
     hasMore: rows.length > 20,
     page: page.number,
-    rootCount: one(
-      "SELECT count(*) AS n FROM comments WHERE post_id=? AND root_id IS NULL AND status='published'",
-      post,
+    rootCount: (
+      await one(
+        "SELECT count(*) AS n FROM comments WHERE post_id=? AND root_id IS NULL AND status='published'",
+        post,
+      )
     ).n,
   };
 }
 export async function saveComment(d, me) {
   requireUser(me);
-  const editing = d.id ? one('SELECT * FROM comments WHERE id=?', v.id(d.id)) : null;
+  const editing = d.id ? await one('SELECT * FROM comments WHERE id=?', v.id(d.id)) : null;
   if (d.id && (!editing || editing.user_id !== me.id || editing.deleted))
     throw new Problem('You can edit only your own comments.', 403);
   if (editing && Number(d.revision) !== editing.revision)
     throw new Problem('This comment changed. Refresh before editing again.', 409);
   const post = editing?.post_id || v.id(d.post_id);
-  const validateParent = () => {
-    if (!one("SELECT 1 FROM posts WHERE id=? AND status='published'", post))
+  const validateParent = async () => {
+    if (!(await one("SELECT 1 FROM posts WHERE id=? AND status='published'", post)))
       throw new Problem('Reply to a published discussion.', 404);
     const parentId = editing?.parent_id || (d.parent_id ? v.id(d.parent_id) : null);
-    const parent = parentId ? publishedComment(parentId) : null;
+    const parent = parentId ? await publishedComment(parentId) : null;
     if (parentId && (!parent || parent.post_id !== post || (!editing && parent.deleted)))
       throw new Problem('Reply to an available comment in this discussion.', 404);
     return parent;
   };
-  validateParent();
+  await validateParent();
   const removing = d.action === 'delete';
   const body = removing
     ? ''
@@ -88,17 +94,17 @@ export async function saveComment(d, me) {
         d.file || (editing?.photo && d.removePhoto !== '1') ? 0 : 3,
         1000,
       );
-  const status = removing ? editing?.status : staff.includes(me.role) ? 'published' : 'pending';
+  const status = removing ? editing?.status : 'published';
   if (removing && !editing) throw new Problem('Choose your comment.');
   let uploaded = '';
   let photo = removing || d.removePhoto === '1' ? '' : editing?.photo || '';
   if (d.file && !removing) photo = uploaded = await saveMedia(d.file, me.id, 'comment');
   let id;
   try {
-    transaction(() => {
-      const parent = validateParent();
+    await transaction(async () => {
+      const parent = await validateParent();
       if (editing) {
-        const result = run(
+        const result = await run(
           'UPDATE comments SET body=?,photo=?,status=?,deleted=?,revision=revision+1 WHERE id=? AND revision=?',
           body,
           photo,
@@ -112,19 +118,21 @@ export async function saveComment(d, me) {
         id = editing.id;
       } else
         id = Number(
-          run(
-            'INSERT INTO comments(post_id,user_id,body,status,created,photo,parent_id,root_id) VALUES(?,?,?,?,?,?,?,?)',
-            post,
-            me.id,
-            body,
-            status,
-            now(),
-            photo,
-            parent?.id || null,
-            parent?.root_id || parent?.id || null,
+          (
+            await run(
+              'INSERT INTO comments(post_id,user_id,body,status,created,photo,parent_id,root_id) VALUES(?,?,?,?,?,?,?,?)',
+              post,
+              me.id,
+              body,
+              status,
+              now(),
+              photo,
+              parent?.id || null,
+              parent?.root_id || parent?.id || null,
+            )
           ).lastInsertRowid,
         );
-      if (status === 'published' && !removing) notifyReply(id);
+      if (status === 'published' && !removing) await notifyReply(id);
     });
   } catch (error) {
     if (uploaded) await discardCommunityMedia(uploaded, me.id);
@@ -159,16 +167,18 @@ export async function saveLost(d, me) {
     for (let i = 0; i < 4; i++)
       if (d[`photo${i}`]) photos.push(await saveMedia(d[`photo${i}`], me.id, 'lost'));
     const id = Number(
-      run(
-        'INSERT INTO lost_found(user_id,kind,item,details,location,created,photos,event_date) VALUES(?,?,?,?,?,?,?,?)',
-        me.id,
-        kind,
-        item,
-        details,
-        location,
-        now(),
-        JSON.stringify(photos),
-        eventDate,
+      (
+        await run(
+          'INSERT INTO lost_found(user_id,kind,item,details,location,created,photos,event_date) VALUES(?,?,?,?,?,?,?,?)',
+          me.id,
+          kind,
+          item,
+          details,
+          location,
+          now(),
+          JSON.stringify(photos),
+          eventDate,
+        )
       ).lastInsertRowid,
     );
     return { id, message: 'Your report and photos have been submitted for review.' };
@@ -177,11 +187,11 @@ export async function saveLost(d, me) {
     throw error;
   }
 }
-export function communityGet(path, url, me) {
+export async function communityGet(path, url, me) {
   if (path === 'notifications') {
     requireUser(me);
     return {
-      notifications: all(
+      notifications: await all(
         `SELECT n.id,n.seen,c.post_id,c.id AS comment_id,c.root_id,u.name,p.title,
       1+(SELECT count(*) FROM comments earlier WHERE earlier.post_id=c.post_id AND earlier.root_id IS NULL AND earlier.status='published' AND (earlier.created<root.created OR (earlier.created=root.created AND earlier.id<root.id)))/20 AS page FROM notifications n
       JOIN comments c ON c.id=n.comment_id JOIN users u ON u.id=c.user_id JOIN posts p ON p.id=c.post_id
@@ -194,7 +204,8 @@ export function communityGet(path, url, me) {
   if (path === 'content-reports') {
     requireUser(me, staff);
     return {
-      reports: all(`SELECT r.*,u.name,CASE WHEN r.kind='post' THEN p.body ELSE c.body END AS body,
+      reports:
+        await all(`SELECT r.*,u.name,CASE WHEN r.kind='post' THEN p.body ELSE c.body END AS body,
       CASE WHEN r.kind='post' THEN p.id ELSE c.post_id END AS post_id
       FROM content_reports r JOIN users u ON u.id=r.reporter LEFT JOIN posts p ON r.kind='post' AND p.id=r.target
       LEFT JOIN comments c ON r.kind='comment' AND c.id=r.target WHERE r.resolved=0 ORDER BY r.id DESC LIMIT 100`),
@@ -203,7 +214,7 @@ export function communityGet(path, url, me) {
   if (path === 'item-inquiries') {
     requireUser(me);
     return {
-      inquiries: all(
+      inquiries: await all(
         `SELECT i.id,i.body,i.response,i.report_id,i.created,l.item,u.name,(l.user_id=? OR ?=1) AS canReply FROM item_inquiries i
       JOIN lost_found l ON l.id=i.report_id JOIN users u ON u.id=i.user_id
       WHERE l.user_id=? OR i.user_id=? OR ?=1 ORDER BY i.id DESC LIMIT 100`,
@@ -216,15 +227,15 @@ export function communityGet(path, url, me) {
     };
   }
 }
-export function communityPost(path, d, me) {
+export async function communityPost(path, d, me) {
   requireUser(me);
   if (path === 'notifications') {
-    run('UPDATE notifications SET seen=1 WHERE user_id=?', me.id);
+    await run('UPDATE notifications SET seen=1 WHERE user_id=?', me.id);
     return { message: 'Notifications marked as read.' };
   }
   if (path === 'lost-found/returned') {
     const id = v.id(d.id);
-    const result = run(
+    const result = await run(
       "UPDATE lost_found SET returned=1 WHERE id=? AND status='published' AND (user_id=? OR ?=1)",
       id,
       me.id,
@@ -235,15 +246,15 @@ export function communityPost(path, d, me) {
     return { message: 'Item marked as returned.' };
   }
   if (path === 'item-inquiries') {
-    throttle(`inquiries:${me.id}`, 10, 3600);
-    const report = one(
+    await throttle(`inquiries:${me.id}`, 10, 3600);
+    const report = await one(
       "SELECT * FROM lost_found WHERE id=? AND status='published' AND returned=0",
       v.id(d.id),
     );
-    if (!report || blocked(me.id, report.user_id))
+    if (!report || (await blocked(me.id, report.user_id)))
       throw new Problem('This notice is unavailable.', 404);
     const body = v.text(d.body, 'Message', 10, 1000);
-    run(
+    await run(
       'INSERT INTO item_inquiries(report_id,user_id,body,created) VALUES(?,?,?,?)',
       report.id,
       me.id,
@@ -253,17 +264,17 @@ export function communityPost(path, d, me) {
     return { message: 'Message sent privately to the reporter and project team.' };
   }
   if (path === 'item-inquiries/reply') {
-    const inquiry = one(
+    const inquiry = await one(
       'SELECT i.id,i.user_id,l.user_id AS owner FROM item_inquiries i JOIN lost_found l ON l.id=i.report_id WHERE i.id=?',
       v.id(d.id),
     );
     if (
       !inquiry ||
       !(inquiry.owner === me.id || staff.includes(me.role)) ||
-      blocked(inquiry.user_id, me.id)
+      (await blocked(inquiry.user_id, me.id))
     )
       throw new Problem('You cannot reply to this inquiry.', 403);
-    run(
+    await run(
       'UPDATE item_inquiries SET response=? WHERE id=?',
       v.text(d.response, 'Reply', 3, 1000),
       inquiry.id,
@@ -271,15 +282,15 @@ export function communityPost(path, d, me) {
     return { message: 'Private reply saved.' };
   }
   if (path === 'content-reports') {
-    throttle(`content-reports:${me.id}`, 20, 3600);
+    await throttle(`content-reports:${me.id}`, 20, 3600);
     const kind = v.choice(d.kind, ['post', 'comment'], 'content type'),
       id = v.id(d.id);
     const target =
       kind === 'post'
-        ? one("SELECT id FROM posts WHERE id=? AND status='published'", id)
-        : publishedComment(id);
+        ? await one("SELECT id FROM posts WHERE id=? AND status='published'", id)
+        : await publishedComment(id);
     if (!target || target.deleted) throw new Problem('Published content not found.', 404);
-    run(
+    await run(
       'INSERT INTO content_reports(reporter,kind,target,reason,created) VALUES(?,?,?,?,?) ON CONFLICT(reporter,kind,target) DO UPDATE SET reason=excluded.reason,resolved=0',
       me.id,
       kind,
@@ -291,21 +302,21 @@ export function communityPost(path, d, me) {
   }
   if (path === 'content-reports/resolve') {
     requireUser(me, staff);
-    const report = one('SELECT * FROM content_reports WHERE id=? AND resolved=0', v.id(d.id));
+    const report = await one('SELECT * FROM content_reports WHERE id=? AND resolved=0', v.id(d.id));
     if (!report) throw new Problem('Report already resolved.', 409);
     const action = v.choice(d.action, ['dismiss', 'remove'], 'decision');
-    transaction(() => {
+    await transaction(async () => {
       if (action === 'remove')
-        run(
+        await run(
           `UPDATE ${report.kind === 'post' ? 'posts' : 'comments'} SET status='rejected' WHERE id=?`,
           report.target,
         );
-      run(
+      await run(
         'UPDATE content_reports SET resolved=1 WHERE kind=? AND target=?',
         report.kind,
         report.target,
       );
-      run(
+      await run(
         'INSERT INTO audit(actor,action,kind,target,reason,created) VALUES(?,?,?,?,?,?)',
         me.id,
         action,

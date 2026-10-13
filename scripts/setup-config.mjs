@@ -1,6 +1,17 @@
 export function validateLocalSetup(env, nodeVersion) {
   const errors = [];
   if (Number(nodeVersion.split('.')[0]) < 24) errors.push('Install Node.js 24 or later.');
+  if (env.TECHCARE_DB_DRIVER && env.TECHCARE_DB_DRIVER !== 'mysql') {
+    errors.push('Set TECHCARE_DB_DRIVER=mysql. SQLite is not supported for application runtime.');
+  }
+  const missingDatabaseSettings = ['HOST', 'NAME', 'USER'].filter(
+    (key) => !env[`TECHCARE_DB_${key}`],
+  );
+  if (missingDatabaseSettings.length) {
+    errors.push(
+      `Configure MySQL before starting TechCare: set ${missingDatabaseSettings.map((key) => `TECHCARE_DB_${key}`).join(', ')} in .env.local.`,
+    );
+  }
   let origin;
   try {
     origin = new URL(env.TECHCARE_ORIGIN);

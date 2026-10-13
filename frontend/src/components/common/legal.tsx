@@ -27,9 +27,10 @@ export function Privacy() {
         <section>
           <h2>What is public</h2>
           <p>
-            Your display name, approved questions, comments, replies, and their attached photos are
-            public. Public profiles also show a bio and profile picture. A private profile hides
-            your bio and picture from everyone except you and accepted friends.
+            Your display name and published questions, comments, replies, and attached photos are
+            public. Questions are reviewed before publication; comments appear immediately. Public
+            profiles also show a bio and profile picture. A private profile hides your bio and
+            picture from everyone except you and accepted friends.
           </p>
           <p>
             Approved Lost & Found notices show the item, photos, description, location, date, and
@@ -57,7 +58,7 @@ export function Privacy() {
           <h2>Report and block</h2>
           <p>
             Use Report under a discussion question or comment to send it to moderators for review.
-            Authors can edit or remove their own comments; member edits are reviewed again.
+            Authors can edit or remove their own comments. Comment edits appear immediately.
           </p>
           <p>
             Use the flag beside a received message to report it. Staff can review the reported
@@ -79,8 +80,9 @@ export function Privacy() {
             <li>Credit original creators when sharing resources.</li>
           </ul>
           <p>
-            Questions, member replies, and Lost & Found reports are reviewed before publication.
-            Moderators may reject inappropriate or unsafe submissions.
+            Questions and Lost &amp; Found reports are reviewed before publication. Discussion
+            comments publish immediately; use Report to flag inappropriate or unsafe content for
+            moderator review.
           </p>
         </section>
         <section className="callout">
@@ -134,9 +136,9 @@ export function Terms() {
             <li>Credit original creators when sharing resources.</li>
           </ul>
           <p>
-            Moderators review questions, member comments and edits, and Lost &amp; Found reports
-            before publication. They may reject inappropriate or unsafe submissions. Use the
-            reporting tools to raise concerns.
+            Moderators review questions and Lost &amp; Found reports before publication. Discussion
+            comments and edits publish immediately. They may remove inappropriate or unsafe content
+            reported by the community.
           </p>
         </section>
         <section>

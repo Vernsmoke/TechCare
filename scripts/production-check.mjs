@@ -16,6 +16,7 @@ const server = spawn(
       NODE_ENV: 'production',
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_ORIGIN: origin,
+      TECHCARE_JWT_SECRET: 'production-check-only-secret-do-not-use-outside-tests-2026',
       TECHCARE_DATA_DIR: temporary,
       TECHCARE_BUILD_DIR: '.next-production',
     },
