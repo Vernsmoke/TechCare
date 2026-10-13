@@ -148,8 +148,8 @@ export function AuthPage({ mode }: { mode: AuthMode }) {
         )}
         {mode === 'register' && (
           <p className="form-hint">
-            Your display name appears on approved public contributions. Please read our{' '}
-            <Link href="/privacy">privacy and community guidelines</Link>.
+            Your display name appears with your public questions, comments, and replies. Please read
+            our <Link href="/privacy">privacy and community guidelines</Link>.
           </p>
         )}
       </Form>

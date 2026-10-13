@@ -94,7 +94,7 @@ export async function saveComment(d, me) {
         d.file || (editing?.photo && d.removePhoto !== '1') ? 0 : 3,
         1000,
       );
-  const status = removing ? editing?.status : staff.includes(me.role) ? 'published' : 'pending';
+  const status = removing ? editing?.status : 'published';
   if (removing && !editing) throw new Problem('Choose your comment.');
   let uploaded = '';
   let photo = removing || d.removePhoto === '1' ? '' : editing?.photo || '';

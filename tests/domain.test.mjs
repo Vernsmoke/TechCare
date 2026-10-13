@@ -333,23 +333,22 @@ try {
       );
     });
     await t.test(
-      'member replies need review, staff replies publish immediately, and search excludes rejected content',
+      'member and staff replies publish immediately, and search excludes rejected content',
       async () => {
+        const memberComment = await call(b, 'comments', {
+          post_id: postId,
+          body: 'I have tried clearing the startup apps.',
+        });
+        assert.equal(memberComment.status, 201);
         assert.equal(
-          (
-            await call(b, 'comments', {
-              post_id: postId,
-              body: 'I have tried clearing the startup apps.',
-            })
-          ).status,
-          201,
+          one('SELECT status FROM comments WHERE id=?', memberComment.data.id).status,
+          'published',
         );
-        assert.equal((await call(guest, `comments?post=${postId}`)).data.comments.length, 1);
-        const pending = (await call(a, 'queue')).data.comments[0];
-        assert.equal(
-          (await call(a, 'moderate', { kind: 'comment', id: pending.id, status: 'published' }))
-            .status,
-          200,
+        assert.equal((await call(guest, `comments?post=${postId}`)).data.comments.length, 2);
+        assert.ok(
+          !(await call(a, 'queue')).data.comments.some(
+            (comment) => comment.id === memberComment.data.id,
+          ),
         );
         assert.equal(
           (

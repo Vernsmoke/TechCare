@@ -92,7 +92,7 @@ export const helpTopics: HelpTopic[] = [
     question: 'How do I create an account?',
     matches: [/\b(register|registration|signup|sign up|join|create account)\b/, /create.*account/],
     answer:
-      'Choose Create Account at the top of the page. You’ll need a display name, email, and a password of 12–128 characters. Verify your email, then sign in. Your display name appears on approved public contributions.',
+      'Choose Create Account at the top of the page. You’ll need a display name, email, and a password of 12–128 characters. Verify your email, then sign in. Your display name appears with your public questions, comments, and replies.',
     steps: [
       'Select Create Account.',
       'Fill in Display name, Email address, and Password, then submit.',
@@ -166,7 +166,7 @@ export const helpTopics: HelpTopic[] = [
       /who can (see|read)|hide my|visible to/,
     ],
     answer:
-      'Your display name and approved discussion contributions are public. A private profile hides your bio and picture except from you and accepted friends. Feedback is staff-only but is not anonymous. This assistant does not inspect your profile or messages; its chat history stays in the tab’s memory.',
+      'Your display name and published questions, comments, and replies are public. Questions are reviewed before publication; comments appear immediately. A private profile hides your bio and picture except from you and accepted friends. Feedback is staff-only but is not anonymous. This assistant does not inspect your profile or messages; its chat history stays in the tab’s memory.',
     steps: [
       'Open My Dashboard to change Profile visibility.',
       'Keep passwords, verification codes, and private identifiers out of public posts.',
@@ -196,12 +196,12 @@ export const helpTopics: HelpTopic[] = [
       /post.*(not showing|not visible|disappear)/,
     ],
     answer:
-      'Questions, member replies, and Lost & Found notices are reviewed before publication. Moderators can approve or reject submissions. Administrators manage moderator roles. I cannot see a submission’s status, approve it, or promise a review time.',
+      'Questions and Lost & Found notices are reviewed before publication. Discussion comments publish immediately and can be reported for moderator review. Administrators manage moderator roles. I cannot see a submission’s status, approve it, or promise a review time.',
     steps: [
       'Make sure you saw the submission confirmation.',
       'Avoid repeatedly submitting the same content while it is awaiting review.',
       'Keep contributions relevant, respectful, and free of sensitive information.',
-      'Approved discussions appear in Discussion; reviewed notices appear in Lost & Found.',
+      'Approved questions appear in Discussion. Comments appear immediately; use Report to raise a concern. Reviewed notices appear in Lost & Found.',
     ],
     link: { href: '/discussion', label: 'Open Discussion' },
   },
@@ -212,12 +212,12 @@ export const helpTopics: HelpTopic[] = [
       /\b(discussion|post|posts|question|questions|reply|replies|comment|forum|community)\b/,
     ],
     answer:
-      'Discussion is where you ask the community for technology help. Choose Ask a Question, add a title, category, and description, then submit for review. Members’ replies also go through review before publication.',
+      'Discussion is where you ask the community for technology help. Choose Ask a Question, add a title, category, and description, then submit for review. Sign in to add a comment to a published question; comments appear immediately.',
     steps: [
       'Sign in and choose Ask a Question.',
       'Write a clear title, select a category, and describe your device, the problem, and checks you tried.',
       'Leave out passwords and personal identifiers, then choose Submit for review.',
-      'Browse approved topics in Discussion. Open a question to read comments or submit your own. Signed-in members can upvote or downvote questions and comments; click the same vote again to remove it.',
+      'Browse approved topics in Discussion. Open a question to read comments or submit your own. Comments publish immediately. Signed-in members can upvote or downvote questions and comments; click the same vote again to remove it.',
     ],
     link: { href: '/discussion', label: 'Browse Discussion' },
   },

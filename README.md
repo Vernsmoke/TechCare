@@ -76,7 +76,7 @@ The root `package.json` owns the project commands, dependencies, and lockfile. R
 - Separate account creation, verification, sign-in, verification recovery, password recovery, and reset dialogs.
 - Persistent JWT sessions use HttpOnly cookies, and refreshing restores the current route and signed-in account. In production, a same-instance WebSocket sends data-free invalidation events so active pages reload fresh results through authenticated API requests.
 - Persistent accounts, hashed passwords, revocable JWT sessions, server-side roles, dashboard, profile editing, and private avatars.
-- Searchable and paginated discussions, moderated questions/member replies, immediate staff replies, and atomic Approve & Answer.
+- Searchable and paginated discussions, moderated questions, immediate comments from all signed-in users, and atomic Approve & Answer.
 - A [discussion feed with dedicated question pages](docs/DISCUSSIONS.md), inline comments, question/comment upvotes and downvotes, and Newest/Top sorting.
 - Optional question photos from upload or live camera, with preview, retake, and removal. Photos follow question moderation and are public only after approval. Live camera needs browser permission and HTTPS or localhost; a device photo-picker fallback is available.
 - Independent follows, mutual friendships, private messaging, blocking, and narrow message reporting.
