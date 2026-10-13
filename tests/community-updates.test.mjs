@@ -9,6 +9,8 @@ import { CONSENT_COOKIE, CONSENT_VERSION } from '../shared/src/consent.mjs';
 import { digest, issueJWT } from '../backend/src/middleware/auth.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-community-updates-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 process.env.TECHCARE_DEV_VERIFY = '0';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3025');

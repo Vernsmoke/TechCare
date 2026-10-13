@@ -12,6 +12,8 @@ import { migrateLegacy } from '../scripts/migrate-legacy.mjs';
 const root = await mkdtemp(join(tmpdir(), 'techcare-migration-')),
   source = join(root, 'legacy'),
   destination = join(root, 'converted');
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 await mkdir(join(source, 'media'), { recursive: true });
 const image = await sharp({ create: { width: 32, height: 32, channels: 3, background: '#123456' } })
   .png()

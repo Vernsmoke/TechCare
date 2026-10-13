@@ -37,6 +37,7 @@ import { join } from 'node:path';
 import { announcements, changeAnnouncement } from '../services/announcements.mjs';
 import { voteColumns, changeVote } from '../services/discussion.mjs';
 import { managedContent, changeManagedContent } from '../services/managed-content.mjs';
+import { isRealtimeAvailable, publishRealtime } from '../services/realtime.mjs';
 
 const json = (payload, status = 200, headers = {}) =>
   Response.json(payload, { status, headers: { 'Cache-Control': 'no-store', ...headers } });
@@ -129,7 +130,17 @@ export async function handle(request) {
             ? 4100000
             : 32768,
     );
-    return await post(path, d, me, request);
+    const response = await post(path, d, me, request);
+    if (response.ok) {
+      const type =
+        ['login', 'logout', 'reset-password', 'profile', 'admin/role'].includes(path)
+          ? 'session'
+          : ['admin/logo', 'admin/hero'].includes(path)
+            ? 'settings'
+            : 'invalidate';
+      publishRealtime(type);
+    }
+    return response;
   } catch (error) {
     if (error instanceof Problem)
       return json(
@@ -174,6 +185,7 @@ async function get(path, url, me, request) {
       classroom: demoMode(request),
       videoUploads: Boolean(process.env.TECHCARE_FFPROBE),
       logo: (await one("SELECT value FROM settings WHERE key='logo'"))?.value || '',
+      realtime: isRealtimeAvailable(),
     });
   if (path === 'branding-icon') {
     const logo = (await one("SELECT value FROM settings WHERE key='logo'"))?.value;

@@ -11,7 +11,7 @@
     "build": "node scripts/build.mjs",
     "start": "node scripts/start.mjs",
     "typecheck": "tsc --project frontend/tsconfig.json --noEmit",
-    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs tests/community-media.test.mjs tests/community-updates.test.mjs tests/client-api.test.mjs tests/setup-config.test.mjs",
+    "test": "node --test tests/domain.test.mjs tests/migration.test.mjs tests/announcements.test.mjs tests/managed-content.test.mjs tests/discussion.test.mjs tests/community-media.test.mjs tests/community-updates.test.mjs tests/client-api.test.mjs tests/setup-config.test.mjs tests/realtime.test.mjs",
     "test:browser": "node scripts/workflow-check.mjs",
     "test:production": "node scripts/production-check.mjs",
     "test:optimization": "node scripts/optimization-check.mjs",
@@ -32,7 +32,8 @@
     "nodemailer": "^10.0.10",
     "react": "^19.3.0",
     "react-dom": "^19.3.0",
-    "sharp": "^0.35.4"
+    "sharp": "^0.35.4",
+    "ws": "^8.22.0"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",

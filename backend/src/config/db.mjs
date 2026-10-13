@@ -8,19 +8,24 @@ const mysqlContext = new AsyncLocalStorage();
 let mysqlPool;
 let sqliteAsyncBusy = false;
 let sqliteAsyncTail = Promise.resolve();
-const useMySQL = () =>
-  process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql';
+const useSQLiteTests = () =>
+  process.env.NODE_ENV !== 'production' && process.env.TECHCARE_TEST_SQLITE === '1';
+const useMySQL = () => !useSQLiteTests();
 
 export function assertDatabaseConfig() {
   if (process.env.NODE_ENV === 'production' && process.env.TECHCARE_DB_DRIVER === 'sqlite')
     throw new Error('Production requires MySQL; SQLite is supported only for local and test use.');
-  if (process.env.NODE_ENV !== 'production' && process.env.TECHCARE_DB_DRIVER !== 'mysql') return;
-  const missing = ['HOST', 'NAME', 'USER', 'PASSWORD'].filter(
-    (key) => !process.env[`TECHCARE_DB_${key}`],
-  );
+  if (process.env.TECHCARE_DB_DRIVER === 'sqlite' && !useSQLiteTests())
+    throw new Error('SQLite is supported only by isolated tests and migration utilities.');
+  if (useSQLiteTests()) return;
+  if (process.env.TECHCARE_DB_DRIVER && process.env.TECHCARE_DB_DRIVER !== 'mysql')
+    throw new Error('TECHCARE_DB_DRIVER must be mysql.');
+  const requiredSettings = ['HOST', 'NAME', 'USER'];
+  if (process.env.NODE_ENV === 'production') requiredSettings.push('PASSWORD');
+  const missing = requiredSettings.filter((key) => !process.env[`TECHCARE_DB_${key}`]);
   if (missing.length)
     throw new Error(
-      `Production MySQL configuration is incomplete: set ${missing.map((key) => `TECHCARE_DB_${key}`).join(', ')}.`,
+      `MySQL configuration is incomplete: set ${missing.map((key) => `TECHCARE_DB_${key}`).join(', ')}.`,
     );
   const port = Number(process.env.TECHCARE_DB_PORT || 3306);
   if (!Number.isInteger(port) || port < 1 || port > 65535)
@@ -44,7 +49,7 @@ async function pool() {
       port: Number(process.env.TECHCARE_DB_PORT || 3306),
       database: process.env.TECHCARE_DB_NAME,
       user: process.env.TECHCARE_DB_USER,
-      password: process.env.TECHCARE_DB_PASSWORD,
+      password: process.env.TECHCARE_DB_PASSWORD || '',
       connectionLimit: Number(process.env.TECHCARE_DB_POOL_SIZE || 10),
       connectTimeout: Number(process.env.TECHCARE_DB_CONNECT_TIMEOUT_MS || 10000),
       waitForConnections: true,

@@ -7,6 +7,8 @@ import { schema, db, all, run, now, closeDatabases } from '../backend/src/config
 import { saveMedia } from '../backend/src/services/media.mjs';
 import { passwordHash, secret } from '../backend/src/middleware/auth.mjs';
 
+process.env.TECHCARE_TEST_SQLITE = '1';
+
 // Always migrates a new copy. The source must be stopped for database/media consistency.
 export async function migrateLegacy({ source, destination, verification, sourceStopped = false }) {
   if (!sourceStopped) throw new Error('Stop the source app first, then pass --source-stopped.');

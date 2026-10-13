@@ -10,6 +10,8 @@ import { handle } from '../backend/src/controllers/api.mjs';
 import { all, one, run, now, closeDatabases, transaction } from '../backend/src/config/db.mjs';
 import { passwordHash, passwordOK, assertConfig } from '../backend/src/middleware/auth.mjs';
 const directory = await mkdtemp(join(tmpdir(), 'techcare-test-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = directory;
 process.env.TECHCARE_DEV_VERIFY = '1';
 process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3000';

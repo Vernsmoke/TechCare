@@ -105,7 +105,7 @@ try {
     'TECHCARE_B2_KEY_ID',
     'TECHCARE_B2_APPLICATION_KEY',
   ].every((key) => process.env[key]);
-  if (applying && mediaRows.length && !hasB2)
+  if (applying && process.env.NODE_ENV === 'production' && mediaRows.length && !hasB2)
     throw new Error(
       'Configure all TECHCARE_B2_* values before migrating existing media into production.',
     );
@@ -117,10 +117,11 @@ try {
     let alreadyInObjectStorage = false;
     try {
       bytes = await getObject(key);
-      alreadyInObjectStorage = hasB2;
+      alreadyInObjectStorage = true;
     } catch {
       try {
         bytes = await readFile(join(dataDir(), key));
+        alreadyInObjectStorage = !hasB2;
       } catch {
         throw new Error(
           `Media object ${media.name} is missing from object storage and ${dataDir()}.`,

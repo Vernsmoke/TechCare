@@ -10,6 +10,8 @@ import { passwordHash } from '../backend/src/middleware/auth.mjs';
 import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-browser-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 const origin = 'http://127.0.0.1:3018',
   password = 'Synthetic-content-check-2026';
@@ -47,7 +49,15 @@ run(
 closeDatabases();
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', 'frontend', '--hostname', '127.0.0.1', '--port', '3018'],
+  [
+    'node_modules/next/dist/bin/next',
+    'start',
+    'frontend',
+    '--hostname',
+    '127.0.0.1',
+    '--port',
+    '3018',
+  ],
   {
     env: {
       ...process.env,

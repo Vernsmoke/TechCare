@@ -1,6 +1,6 @@
 -- TechCare MySQL 8.0.16+ schema (latest application schema, migration version 7).
 -- Select the application database before applying this file.
-SET NAMES utf8mb4 COLLATE utf8mb4_0900_ai_ci;
+SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS users (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   UNIQUE KEY users_email (email),
   CONSTRAINT users_role_check CHECK (role IN ('member','moderator','admin')),
   CONSTRAINT users_visibility_check CHECK (visibility IN ('public','private'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS email_verifications (
   user_id INT UNSIGNED NOT NULL,
@@ -27,7 +27,7 @@ CREATE TABLE IF NOT EXISTS email_verifications (
   last_sent BIGINT NOT NULL,
   PRIMARY KEY (user_id),
   CONSTRAINT email_verifications_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS sessions (
   token_hash CHAR(64) NOT NULL,
@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS sessions (
   PRIMARY KEY (token_hash),
   KEY session_user (user_id),
   CONSTRAINT sessions_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS follows (
   follower INT UNSIGNED NOT NULL,
@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS follows (
   CONSTRAINT follows_follower_fk FOREIGN KEY (follower) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT follows_followed_fk FOREIGN KEY (followed) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT follows_not_self CHECK (follower <> followed)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS posts (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -62,7 +62,7 @@ CREATE TABLE IF NOT EXISTS posts (
   KEY post_photo (photo),
   CONSTRAINT posts_user_fk FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT posts_status_check CHECK (status IN ('pending','published','rejected'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comments (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -85,7 +85,7 @@ CREATE TABLE IF NOT EXISTS comments (
   CONSTRAINT comments_parent_fk FOREIGN KEY (parent_id) REFERENCES comments(id) ON DELETE SET NULL,
   CONSTRAINT comments_root_fk FOREIGN KEY (root_id) REFERENCES comments(id) ON DELETE CASCADE,
   CONSTRAINT comments_status_check CHECK (status IN ('pending','published','rejected'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS resources (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -101,7 +101,7 @@ CREATE TABLE IF NOT EXISTS resources (
   cover VARCHAR(512) NOT NULL DEFAULT '',
   PRIMARY KEY (id),
   CONSTRAINT resources_status_check CHECK (status IN ('draft','published'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS feedback (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -112,7 +112,7 @@ CREATE TABLE IF NOT EXISTS feedback (
   PRIMARY KEY (id),
   CONSTRAINT feedback_user_fk FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT feedback_rating_check CHECK (rating BETWEEN 1 AND 5)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS lost_found (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -130,7 +130,7 @@ CREATE TABLE IF NOT EXISTS lost_found (
   CONSTRAINT lost_found_user_fk FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT lost_found_kind_check CHECK (kind IN ('lost','found')),
   CONSTRAINT lost_found_status_check CHECK (status IN ('pending','published','rejected'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS friendships (
   sender INT UNSIGNED NOT NULL,
@@ -145,7 +145,7 @@ CREATE TABLE IF NOT EXISTS friendships (
   CONSTRAINT friendships_receiver_fk FOREIGN KEY (receiver) REFERENCES users(id),
   CONSTRAINT friendships_not_self CHECK (sender <> receiver),
   CONSTRAINT friendships_status_check CHECK (status IN ('pending','accepted'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS messages (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -157,13 +157,13 @@ CREATE TABLE IF NOT EXISTS messages (
   KEY message_pair (sender,receiver,id),
   CONSTRAINT messages_sender_fk FOREIGN KEY (sender) REFERENCES users(id),
   CONSTRAINT messages_receiver_fk FOREIGN KEY (receiver) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS settings (
   `key` VARCHAR(120) NOT NULL,
   value TEXT NOT NULL,
   PRIMARY KEY (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS password_resets (
   token_hash CHAR(64) NOT NULL,
@@ -171,7 +171,7 @@ CREATE TABLE IF NOT EXISTS password_resets (
   expires BIGINT NOT NULL,
   PRIMARY KEY (token_hash),
   CONSTRAINT password_resets_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS media (
   name VARCHAR(64) NOT NULL,
@@ -184,7 +184,7 @@ CREATE TABLE IF NOT EXISTS media (
   KEY media_owner (owner),
   CONSTRAINT media_owner_fk FOREIGN KEY (owner) REFERENCES users(id),
   CONSTRAINT media_access_check CHECK (access IN ('profile','public','question','announcement','managed','comment','lost'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS audit (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -197,7 +197,7 @@ CREATE TABLE IF NOT EXISTS audit (
   PRIMARY KEY (id),
   KEY audit_kind_target (kind,target),
   CONSTRAINT audit_actor_fk FOREIGN KEY (actor) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS blocks (
   blocker INT UNSIGNED NOT NULL,
@@ -207,7 +207,7 @@ CREATE TABLE IF NOT EXISTS blocks (
   CONSTRAINT blocks_blocker_fk FOREIGN KEY (blocker) REFERENCES users(id),
   CONSTRAINT blocks_blocked_fk FOREIGN KEY (blocked) REFERENCES users(id),
   CONSTRAINT blocks_not_self CHECK (blocker <> blocked)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS message_reports (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -219,20 +219,20 @@ CREATE TABLE IF NOT EXISTS message_reports (
   UNIQUE KEY message_reports_reporter_message (reporter,message_id),
   CONSTRAINT message_reports_reporter_fk FOREIGN KEY (reporter) REFERENCES users(id),
   CONSTRAINT message_reports_message_fk FOREIGN KEY (message_id) REFERENCES messages(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS rate_limits (
   `key` VARCHAR(191) NOT NULL,
   count INT UNSIGNED NOT NULL,
   expires BIGINT NOT NULL,
   PRIMARY KEY (`key`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS migrations (
   version INT UNSIGNED NOT NULL,
   applied BIGINT NOT NULL,
   PRIMARY KEY (version)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS announcements (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -250,7 +250,7 @@ CREATE TABLE IF NOT EXISTS announcements (
   KEY announcements_order (position,id),
   KEY announcements_image (image),
   CONSTRAINT announcements_status_check CHECK (status IN ('draft','published'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS guides (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -266,7 +266,7 @@ CREATE TABLE IF NOT EXISTS guides (
   images LONGTEXT NOT NULL,
   PRIMARY KEY (id),
   CONSTRAINT guides_status_check CHECK (status IN ('draft','published'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS booths (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -288,7 +288,7 @@ CREATE TABLE IF NOT EXISTS booths (
   created BIGINT NOT NULL,
   PRIMARY KEY (id),
   CONSTRAINT booths_status_check CHECK (status IN ('draft','published'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS post_votes (
   post_id INT UNSIGNED NOT NULL,
@@ -298,7 +298,7 @@ CREATE TABLE IF NOT EXISTS post_votes (
   CONSTRAINT post_votes_post_fk FOREIGN KEY (post_id) REFERENCES posts(id) ON DELETE CASCADE,
   CONSTRAINT post_votes_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT post_votes_value_check CHECK (value IN (-1,1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS comment_votes (
   comment_id INT UNSIGNED NOT NULL,
@@ -308,7 +308,7 @@ CREATE TABLE IF NOT EXISTS comment_votes (
   CONSTRAINT comment_votes_comment_fk FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE,
   CONSTRAINT comment_votes_user_fk FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   CONSTRAINT comment_votes_value_check CHECK (value IN (-1,1))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS notifications (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -321,7 +321,7 @@ CREATE TABLE IF NOT EXISTS notifications (
   KEY notifications_user (user_id,id),
   CONSTRAINT notifications_user_fk FOREIGN KEY (user_id) REFERENCES users(id),
   CONSTRAINT notifications_comment_fk FOREIGN KEY (comment_id) REFERENCES comments(id) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS content_reports (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -335,7 +335,7 @@ CREATE TABLE IF NOT EXISTS content_reports (
   UNIQUE KEY content_reports_unique (reporter,kind,target),
   CONSTRAINT content_reports_reporter_fk FOREIGN KEY (reporter) REFERENCES users(id),
   CONSTRAINT content_reports_kind_check CHECK (kind IN ('post','comment'))
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE IF NOT EXISTS item_inquiries (
   id INT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -348,7 +348,7 @@ CREATE TABLE IF NOT EXISTS item_inquiries (
   KEY item_inquiries_report (report_id,id),
   CONSTRAINT item_inquiries_report_fk FOREIGN KEY (report_id) REFERENCES lost_found(id),
   CONSTRAINT item_inquiries_user_fk FOREIGN KEY (user_id) REFERENCES users(id)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 INSERT IGNORE INTO migrations (version,applied)
 VALUES (1,UNIX_TIMESTAMP()),(2,UNIX_TIMESTAMP()),(3,UNIX_TIMESTAMP()),

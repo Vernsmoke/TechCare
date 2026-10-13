@@ -9,6 +9,8 @@ import { run, one, now, closeDatabases } from '../backend/src/config/db.mjs';
 import { passwordHash } from '../backend/src/middleware/auth.mjs';
 
 const temporary = await mkdtemp(join(tmpdir(), 'techcare-discussion-'));
+process.env.TECHCARE_DB_DRIVER = 'sqlite';
+process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
 process.env.TECHCARE_DEV_VERIFY = '1';
 const origin = (process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3017');

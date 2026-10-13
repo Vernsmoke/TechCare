@@ -2,6 +2,7 @@ import nextEnv from '@next/env';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { validateLocalSetup } from './setup-config.mjs';
+import { assertDatabaseReady, closeMySQLPool } from '../backend/src/config/db.mjs';
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 nextEnv.loadEnvConfig(root, true);
@@ -15,6 +16,14 @@ if (errors.length) {
   );
   process.exitCode = 1;
 } else {
-  console.log(`Setup OK. Open exactly ${process.env.TECHCARE_ORIGIN}`);
-  console.log('Use that same address for Accept and continue, sign-in, and uploads.');
+  try {
+    await assertDatabaseReady();
+    console.log(`Setup OK. Open exactly ${process.env.TECHCARE_ORIGIN}`);
+    console.log('MySQL schema is ready. Use the same address for consent, sign-in, and uploads.');
+  } catch (error) {
+    console.error(`TechCare cannot connect to its MySQL database: ${error.message}`);
+    process.exitCode = 1;
+  } finally {
+    await closeMySQLPool();
+  }
 }

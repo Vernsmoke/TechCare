@@ -10,6 +10,11 @@ const local = {
   TECHCARE_ORIGIN: 'http://127.0.0.1:3000',
   TECHCARE_SECURE_COOKIES: '0',
   TECHCARE_DEV_VERIFY: '1',
+  TECHCARE_DB_DRIVER: 'mysql',
+  TECHCARE_DB_HOST: '127.0.0.1',
+  TECHCARE_DB_NAME: 'techcare',
+  TECHCARE_DB_USER: 'techcare_app',
+  TECHCARE_DB_PASSWORD: '',
 };
 test('fresh local setup supports both documented loopback addresses', () => {
   assert.deepEqual(validateLocalSetup(local, '24.0.0'), []);
@@ -17,6 +22,48 @@ test('fresh local setup supports both documented loopback addresses', () => {
     validateLocalSetup({ ...local, TECHCARE_ORIGIN: 'http://localhost:3000' }, '24.0.0'),
     [],
   );
+});
+test('local setup permits a MySQL account with no password', () => {
+  assert.deepEqual(validateLocalSetup(local, '24.0.0'), []);
+  assert.ok(
+    validateLocalSetup({ ...local, TECHCARE_DB_DRIVER: 'sqlite' }, '24.0.0').some((error) =>
+      error.includes('TECHCARE_DB_DRIVER=mysql'),
+    ),
+  );
+});
+test('application database defaults to MySQL and only isolated test processes may select SQLite', () => {
+  const names = [
+    'NODE_ENV',
+    'TECHCARE_DB_DRIVER',
+    'TECHCARE_TEST_SQLITE',
+    'TECHCARE_DB_HOST',
+    'TECHCARE_DB_NAME',
+    'TECHCARE_DB_USER',
+    'TECHCARE_DB_PASSWORD',
+  ];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  try {
+    process.env.NODE_ENV = 'development';
+    delete process.env.TECHCARE_DB_DRIVER;
+    delete process.env.TECHCARE_TEST_SQLITE;
+    for (const name of names.slice(3)) delete process.env[name];
+    assert.throws(assertDatabaseConfig, /TECHCARE_DB_HOST/);
+    Object.assign(process.env, {
+      TECHCARE_DB_HOST: '127.0.0.1',
+      TECHCARE_DB_NAME: 'techcare',
+      TECHCARE_DB_USER: 'techcare_app',
+      TECHCARE_DB_PASSWORD: '',
+    });
+    assert.doesNotThrow(assertDatabaseConfig);
+    process.env.TECHCARE_DB_DRIVER = 'sqlite';
+    assert.throws(assertDatabaseConfig, /isolated tests and migration utilities/);
+    process.env.TECHCARE_TEST_SQLITE = '1';
+    assert.doesNotThrow(assertDatabaseConfig);
+  } finally {
+    for (const name of names)
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+  }
 });
 test('rejects origin settings that fail local consent or address a different server', () => {
   for (const origin of [
@@ -71,8 +118,10 @@ test('production database configuration requires MySQL settings and never accept
       TECHCARE_DB_PORT: '3306',
       TECHCARE_DB_NAME: 'techcare',
       TECHCARE_DB_USER: 'techcare',
-      TECHCARE_DB_PASSWORD: 'local-test-only',
+      TECHCARE_DB_PASSWORD: '',
     });
+    assert.throws(assertDatabaseConfig, /TECHCARE_DB_PASSWORD/);
+    process.env.TECHCARE_DB_PASSWORD = 'local-test-only';
     assert.throws(assertDatabaseConfig, /TECHCARE_DB_SSL=1/);
     process.env.TECHCARE_DB_SSL = '1';
     assert.doesNotThrow(assertDatabaseConfig);
