@@ -9,7 +9,15 @@ const origin = 'http://127.0.0.1:3002';
 // Local build verification only: no HTTPS edge, no public bind, no real accounts.
 const server = spawn(
   process.execPath,
-  ['node_modules/next/dist/bin/next', 'start', 'frontend', '--hostname', '127.0.0.1', '--port', '3002'],
+  [
+    'node_modules/next/dist/bin/next',
+    'start',
+    'frontend',
+    '--hostname',
+    '127.0.0.1',
+    '--port',
+    '3002',
+  ],
   {
     env: {
       ...process.env,
@@ -19,6 +27,9 @@ const server = spawn(
       TECHCARE_JWT_SECRET: 'production-check-only-secret-do-not-use-outside-tests-2026',
       TECHCARE_DATA_DIR: temporary,
       TECHCARE_BUILD_DIR: '.next-production',
+      TECHCARE_DB_DRIVER: 'sqlite',
+      TECHCARE_TEST_SQLITE: '1',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,

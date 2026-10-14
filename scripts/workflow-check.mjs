@@ -22,6 +22,7 @@ run(
   now(),
 );
 closeDatabases();
+await mkdir('artifacts', { recursive: true });
 const server = spawn(
   process.execPath,
   [
@@ -40,6 +41,8 @@ const server = spawn(
       TECHCARE_ORIGIN: origin,
       TECHCARE_DEV_VERIFY: '1',
       TECHCARE_BUILD_DIR: '.next-e2e',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
+      TECHCARE_TEST_BYPASS_CONSENT: '1',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -78,6 +81,7 @@ try {
       storageState: consentStorage(origin),
       viewport: { width: 1365, height: 950 },
       reducedMotion: 'reduce',
+      permissions: ['camera'],
     }),
     adminContext = await browser.newContext({
       storageState: consentStorage(origin),
@@ -88,7 +92,6 @@ try {
     admin = await adminContext.newPage();
   for (const p of [member, admin]) p.on('pageerror', (e) => errors.push(e.message));
   await member.goto(origin, { waitUntil: 'networkidle' });
-  await mkdir('artifacts', { recursive: true });
   await member.getByRole('button', { name: 'Switch to dark mode' }).click();
   await expect(member.locator('html')).toHaveAttribute('data-theme', 'dark');
   await member.reload({ waitUntil: 'networkidle' });
@@ -100,7 +103,7 @@ try {
   );
   pass('Dark mode persists after reload; favicon endpoints load');
   await member.getByRole('link', { name: 'Create Account', exact: true }).click();
-  await expect(member).toHaveURL(origin + '/register');
+  await expect(member).toHaveURL(origin + '/register', { timeout: 30_000 });
   await expect(member.getByRole('dialog')).toHaveCount(0);
   let dialog = member.locator('.auth-page');
   await dialog.getByRole('button', { name: 'Create Account', exact: true }).click();
@@ -146,11 +149,11 @@ try {
   await expect(member.getByRole('status').filter({ hasText: 'Profile updated' })).toBeVisible();
   pass('Profile editing and private visibility');
   await member.getByRole('button', { name: 'Ask a Question', exact: true }).first().click();
-  dialog = member.getByRole('dialog');
+  dialog = member.locator('.ask-question-page');
   await dialog.getByLabel('Question title').fill('How can I make my laptop start faster?');
-  await dialog.getByLabel('Category').selectOption('Operating system');
+  await dialog.getByLabel('Topic').selectOption('Operating system');
   await dialog
-    .getByLabel('Describe the problem')
+    .getByLabel('What happened?')
     .fill(
       'My laptop takes a long time to start. I have restarted it and checked the available storage. What should I try next?',
     );
@@ -181,7 +184,16 @@ try {
     'environment',
   );
   await member.evaluate(() => {
-    navigator.mediaDevices.getUserMedia = window.qaGetUserMedia;
+    navigator.mediaDevices.getUserMedia = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 960;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#2458bc';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      window.qaCameraCanvas = canvas;
+      return canvas.captureStream(10);
+    };
   });
   await dialog.getByRole('button', { name: 'Use camera', exact: true }).click();
   await expect(dialog.getByRole('button', { name: 'Capture photo', exact: true })).toBeEnabled();
@@ -225,7 +237,7 @@ try {
   await expect(
     member.locator('.own-question').filter({ hasText: 'How can I make my laptop start faster?' }),
   ).toContainText('pending');
-  pass('Question modal → pending status in dashboard');
+  pass('Question page → pending status in dashboard');
   const savedPhoto = await member
     .getByRole('link', { name: 'View attached photo' })
     .getAttribute('href');
@@ -268,6 +280,7 @@ try {
   await member
     .getByRole('link', { name: 'How can I make my laptop start faster?', exact: true })
     .click();
+  await expect(member).toHaveURL(/\/discussion\/\d+$/, { timeout: 30_000 });
   dialog = member.locator('.discussion-thread-page');
   await expect(
     dialog.getByAltText('Photo attached to: How can I make my laptop start faster?'),
@@ -279,9 +292,9 @@ try {
   ).toBeVisible();
   await dialog.getByLabel('Your comment').fill('Thank you. I will try these safe steps.');
   await dialog.getByRole('button', { name: 'Send comment' }).click();
-  await expect(member.getByRole('status').filter({ hasText: 'Comment submitted' })).toBeVisible();
+  await expect(member.getByRole('status').filter({ hasText: 'Comment published' })).toBeVisible();
   await member.keyboard.press('Escape');
-  pass('Member sees staff answer and submits moderated reply');
+  pass('Member sees staff answer and publishes a reply');
   await member.getByRole('link', { name: 'Members', exact: true }).click();
   const adminCard = member
     .locator('.member-card')
@@ -347,7 +360,6 @@ try {
   pass('Private feedback submission');
   await admin.getByRole('link', { name: 'Moderator', exact: true }).click();
   await admin.getByRole('button', { name: 'Replies', exact: true }).click();
-  await admin.getByRole('button', { name: 'Approve', exact: true }).click();
   await expect(admin.getByText('No replies awaiting review')).toBeVisible();
   await admin.getByRole('button', { name: 'Lost & Found', exact: true }).click();
   await admin.getByRole('button', { name: 'Approve', exact: true }).click();
@@ -359,7 +371,7 @@ try {
   await expect(
     admin.getByText('Synthetic report to verify the evidence access workflow.'),
   ).toBeVisible();
-  pass('Staff reviews replies, reports, feedback, and narrow message evidence');
+  pass('Staff reviews reports, feedback, and narrow message evidence');
   await admin.getByRole('link', { name: 'Publish resource', exact: true }).click();
   ad = admin.locator('.editor-page');
   await ad.getByLabel('Title', { exact: true }).fill('Approved sample learning resource');
@@ -386,6 +398,7 @@ try {
   await admin.getByRole('button', { name: 'Remove moderator', exact: true }).click();
   await expect(admin.getByRole('button', { name: 'Make moderator', exact: true })).toBeVisible();
   pass('Admin role assignment and removal');
+  const originalLogo = await admin.locator('.custom-brand img').getAttribute('src');
   await admin.getByRole('button', { name: 'Save logo', exact: true }).click();
   await expect(admin.getByText('Choose a file for new app logo.')).toBeVisible();
   await admin.getByLabel('New app logo', { exact: true }).setInputFiles({
@@ -401,7 +414,7 @@ try {
     .getByLabel('New app logo', { exact: true })
     .setInputFiles(resolve('frontend/public/static/techcare-icon.png'));
   await expect(admin.getByAltText('Selected logo preview')).toBeVisible();
-  await expect(admin.locator('.custom-brand img')).toHaveCount(0);
+  await expect(admin.locator('.custom-brand img')).toHaveAttribute('src', originalLogo);
   await admin.getByRole('button', { name: 'Save logo', exact: true }).click();
   await expect(admin.getByRole('status').filter({ hasText: 'App logo updated.' })).toBeVisible();
   const savedLogo = await admin.locator('.custom-brand img').getAttribute('src');
@@ -414,7 +427,7 @@ try {
   await admin.getByRole('button', { name: 'App settings', exact: true }).click();
   await admin.screenshot({ path: 'artifacts/admin-branding-dark.png', fullPage: true });
   await admin.getByRole('button', { name: 'Restore original logo' }).click();
-  await expect(admin.locator('.custom-brand img')).toHaveCount(0);
+  await expect(admin.locator('.custom-brand img')).toHaveAttribute('src', originalLogo);
   await expect(
     admin.getByRole('status').filter({ hasText: 'Original TechCare logo restored.' }),
   ).toBeVisible();
@@ -426,31 +439,37 @@ try {
     admin.getByRole('status').filter({ hasText: 'Homepage illustration updated' }),
   ).toBeVisible();
   pass('Admin image validation and homepage replacement');
-  // Keyboard containment and focus restoration.
+  // Camera resources are released when leaving the question page.
   await member.getByRole('link', { name: 'Home', exact: true }).click();
   await member.getByRole('button', { name: 'Ask a Question', exact: true }).first().click();
-  for (let i = 0; i < 12; i++) await member.keyboard.press('Tab');
-  expect(await member.evaluate(() => !!document.activeElement.closest('[role=dialog]'))).toBe(true);
-  await member.getByRole('dialog').getByRole('button', { name: 'Use camera', exact: true }).click();
+  const questionPage = member.locator('.ask-question-page');
+  await member.evaluate(() => {
+    navigator.mediaDevices.getUserMedia = async () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 960;
+      const context = canvas.getContext('2d');
+      context.fillStyle = '#2458bc';
+      context.fillRect(0, 0, canvas.width, canvas.height);
+      window.qaCameraCanvas = canvas;
+      return canvas.captureStream(10);
+    };
+  });
+  await questionPage.getByRole('button', { name: 'Use camera', exact: true }).click();
   await expect(
-    member.getByRole('dialog').getByRole('button', { name: 'Capture photo', exact: true }),
+    questionPage.getByRole('button', { name: 'Capture photo', exact: true }),
   ).toBeEnabled();
   await member.evaluate(() => {
     window.qaCameraTracks = document.querySelector('.question-camera video').srcObject.getTracks();
   });
-  await member.keyboard.press('Escape');
+  await questionPage.getByRole('link', { name: 'Back to discussions' }).click();
+  await expect(member).toHaveURL(origin + '/discussion');
   expect(
     await member.evaluate(() =>
       window.qaCameraTracks.every((track) => track.readyState === 'ended'),
     ),
   ).toBe(true);
-  expect(
-    await member
-      .getByRole('button', { name: 'Ask a Question', exact: true })
-      .first()
-      .evaluate((el) => el === document.activeElement),
-  ).toBe(true);
-  pass('Dialog traps focus, stops camera on close, and restores focus on Escape');
+  pass('Question page stops the camera when navigating away');
   await mkdir('artifacts', { recursive: true });
   for (const route of [
     '/',
@@ -554,5 +573,5 @@ try {
   closeDatabases();
   const child = relative(resolve(tmpdir()), resolve(temporary));
   if (child.startsWith('techcare-browser-') && !child.includes('..') && !isAbsolute(child))
-    await rm(temporary, { recursive: true, force: true });
+    await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
 }

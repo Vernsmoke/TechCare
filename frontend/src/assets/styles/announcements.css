@@ -169,6 +169,13 @@ button.announcement-image:focus-visible {
   gap: 24px;
   margin-bottom: 24px;
 }
+.announcement-settings,
+.announcement-settings-heading,
+.announcement-admin-list,
+.announcement-admin-item {
+  min-width: 0;
+  width: 100%;
+}
 .announcement-settings-heading h2 {
   font-size: 30px;
   margin: 0 0 10px;

@@ -1,8 +1,9 @@
 import nodemailer from 'nodemailer';
 import { Problem } from '../middleware/auth.mjs';
+import { isIsolatedTestRuntime } from '../config/runtime.mjs';
 
 export function assertMailConfig() {
-  if (process.env.NODE_ENV !== 'production') return;
+  if (process.env.NODE_ENV !== 'production' || isIsolatedTestRuntime()) return;
   if (!process.env.TECHCARE_SMTP_HOST || !process.env.TECHCARE_SMTP_FROM)
     throw new Error(
       'Production email verification requires TECHCARE_SMTP_HOST and TECHCARE_SMTP_FROM.',

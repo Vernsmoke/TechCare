@@ -106,6 +106,9 @@ test('production database configuration requires MySQL settings and never accept
     'TECHCARE_DB_SSL',
     'TECHCARE_DB_POOL_SIZE',
     'TECHCARE_DB_CONNECT_TIMEOUT_MS',
+    'TECHCARE_TEST_SQLITE',
+    'TECHCARE_ISOLATED_TEST_RUNTIME',
+    'TECHCARE_ORIGIN',
   ];
   const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   try {
@@ -127,6 +130,14 @@ test('production database configuration requires MySQL settings and never accept
     assert.doesNotThrow(assertDatabaseConfig);
     process.env.TECHCARE_DB_DRIVER = 'sqlite';
     assert.throws(assertDatabaseConfig, /Production requires MySQL/);
+    Object.assign(process.env, {
+      TECHCARE_TEST_SQLITE: '1',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
+      TECHCARE_ORIGIN: 'https://example.test',
+    });
+    assert.throws(assertDatabaseConfig, /Production requires MySQL/);
+    process.env.TECHCARE_ORIGIN = 'http://127.0.0.1:3002';
+    assert.doesNotThrow(assertDatabaseConfig);
   } finally {
     for (const name of names)
       if (previous[name] === undefined) delete process.env[name];

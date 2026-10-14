@@ -7,6 +7,7 @@ import {
 import { mkdir, readFile, unlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { dataDir } from '../config/db.mjs';
+import { isIsolatedTestRuntime } from '../config/runtime.mjs';
 
 let client;
 
@@ -39,7 +40,9 @@ function b2Config() {
     !endpoint.hostname ||
     endpoint.username ||
     endpoint.password ||
-    (process.env.NODE_ENV === 'production' && endpoint.protocol !== 'https:')
+    (process.env.NODE_ENV === 'production' &&
+      !isIsolatedTestRuntime() &&
+      endpoint.protocol !== 'https:')
   )
     throw new Error('Production Backblaze B2 endpoints must use HTTPS and contain no credentials.');
   return config;
@@ -69,7 +72,7 @@ function localPath(key) {
 
 export function assertObjectStorageConfig() {
   const config = b2Config();
-  if (process.env.NODE_ENV === 'production' && !config)
+  if (process.env.NODE_ENV === 'production' && !isIsolatedTestRuntime() && !config)
     throw new Error('Configure Backblaze B2 before starting in production.');
 }
 
@@ -88,7 +91,7 @@ export async function putObject(key, body, contentType) {
     );
     return;
   }
-  if (process.env.NODE_ENV === 'production')
+  if (process.env.NODE_ENV === 'production' && !isIsolatedTestRuntime())
     throw new Error('Backblaze B2 is required in production.');
   const path = localPath(key);
   await mkdir(join(dataDir(), 'media'), { recursive: true });
@@ -111,7 +114,7 @@ export async function removeObject(key) {
     await s3(config).send(new DeleteObjectCommand({ Bucket: config.bucket, Key: key }));
     return;
   }
-  if (process.env.NODE_ENV === 'production')
+  if (process.env.NODE_ENV === 'production' && !isIsolatedTestRuntime())
     throw new Error('Backblaze B2 is required in production.');
   await unlink(localPath(key));
 }

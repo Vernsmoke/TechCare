@@ -40,6 +40,9 @@ const server = spawn(
       TECHCARE_ORIGIN: origin,
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_BUILD_DIR: '.next-production',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
+      TECHCARE_TEST_BYPASS_CONSENT: '1',
+      TECHCARE_JWT_SECRET: 'isolated-announcement-browser-secret-at-least-32-bytes',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -54,7 +57,40 @@ const errors = [],
   checks = [];
 async function scan(page, name) {
   await page.waitForLoadState('networkidle');
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.waitForTimeout(350);
+  const overflow = await page.evaluate(() => ({
+    viewport: innerWidth,
+    documentWidth: document.documentElement.scrollWidth,
+    announcementAncestors: (() => {
+      const nodes = [];
+      let element = document.querySelector('.announcement-settings');
+      while (element && nodes.length < 8) {
+        const box = element.getBoundingClientRect();
+        const style = getComputedStyle(element);
+        nodes.push({
+          element: element.className || element.tagName,
+          left: box.left,
+          right: box.right,
+          width: style.width,
+          minWidth: style.minWidth,
+          display: style.display,
+          gridTemplateColumns: style.gridTemplateColumns,
+        });
+        element = element.parentElement;
+      }
+      return nodes;
+    })(),
+    elements: Array.from(document.querySelectorAll('body *'))
+      .map((element) => {
+        const box = element.getBoundingClientRect();
+        return { element: element.className || element.tagName, left: box.left, right: box.right };
+      })
+      .filter(({ right }) => right > innerWidth + 1)
+      .slice(0, 8),
+  }));
+  expect(overflow.documentWidth, `${name}: ${JSON.stringify(overflow)}`).toBeLessThanOrEqual(
+    overflow.viewport,
+  );
   const result = await new AxeBuilder({ page })
     .withTags(['wcag2a', 'wcag2aa', 'wcag21aa'])
     .analyze();
@@ -148,7 +184,7 @@ try {
   await dialog
     .getByLabel('Announcement image', { exact: true })
     .setInputFiles(resolve('frontend/public/static/techcare-hero.webp'));
-  await expect(dialog.getByAltText('Announcement image preview')).toBeVisible();
+  await expect(dialog.getByAltText('Announcement image preview').first()).toBeVisible();
   await dialog.getByLabel('Title', { exact: true }).fill('Support booth update');
   await dialog
     .getByLabel('Short description (optional)')
@@ -174,7 +210,7 @@ try {
   await first.getByRole('button', { name: 'Publish', exact: true }).click();
   await expect(first.getByText('Published', { exact: true })).toBeVisible();
   await guest.reload();
-  await expect(guest.locator('.announcement-copy h3')).toHaveText('Support booth update');
+  await expect(guest.locator('.announcement-copy h3:visible')).toHaveText('Support booth update');
   await expect(guest.locator('.announcement-copy time')).toHaveText('October 16, 2026');
   await expect(guest.getByRole('link', { name: /View details/ })).toHaveAttribute(
     'href',
@@ -198,11 +234,11 @@ try {
     'Care for your laptop',
   );
   await guest.reload();
-  await expect(guest.locator('.announcement-copy h3')).toHaveText('Care for your laptop');
+  await expect(guest.locator('.announcement-copy h3:visible')).toHaveText('Care for your laptop');
   await guest.getByRole('button', { name: 'Next announcement', exact: true }).click();
-  await expect(guest.locator('.announcement-copy h3')).toHaveText('Support booth update');
+  await expect(guest.locator('.announcement-copy h3:visible')).toHaveText('Support booth update');
   await guest.getByRole('button', { name: 'Previous announcement', exact: true }).click();
-  await expect(guest.locator('.announcement-copy h3')).toHaveText('Care for your laptop');
+  await expect(guest.locator('.announcement-copy h3:visible')).toHaveText('Care for your laptop');
   await guest.getByRole('button', { name: 'Enlarge image: Care for your laptop' }).click();
   await expect(guest.getByRole('dialog').getByAltText('Device care tips poster')).toBeVisible();
   await guest.keyboard.press('Escape');
@@ -245,7 +281,7 @@ try {
   await first.getByRole('button', { name: 'Hide', exact: true }).click();
   await expect(first.getByText('Draft', { exact: true })).toBeVisible();
   await guest.reload();
-  await expect(guest.locator('.announcement-copy h3')).toHaveText('Care for your laptop');
+  await expect(guest.locator('.announcement-copy h3:visible')).toHaveText('Care for your laptop');
   await second.getByRole('button', { name: 'Delete', exact: true }).click();
   await admin.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(second).toBeVisible();

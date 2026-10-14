@@ -4,7 +4,7 @@ import { spawn } from 'node:child_process';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, relative, isAbsolute, resolve } from 'node:path';
-import { digest, secret } from '../backend/src/middleware/auth.mjs';
+import { digest, issueJWT } from '../backend/src/middleware/auth.mjs';
 import { run, now, closeDatabases } from '../backend/src/config/db.mjs';
 
 const baseline = process.argv.includes('--baseline');
@@ -12,7 +12,8 @@ const temporary = await mkdtemp(join(tmpdir(), 'techcare-optimization-'));
 process.env.TECHCARE_DB_DRIVER = 'sqlite';
 process.env.TECHCARE_TEST_SQLITE = '1';
 process.env.TECHCARE_DATA_DIR = temporary;
-const adminToken = secret();
+const testJwtSecret = 'isolated-optimization-browser-secret-at-least-32-bytes';
+process.env.TECHCARE_JWT_SECRET = testJwtSecret;
 const admin = run(
   "INSERT INTO users(name,email,hash,role,verified,created) VALUES(?,?,?,'admin',1,?)",
   'Optimization QA',
@@ -20,6 +21,7 @@ const admin = run(
   'unused',
   now(),
 );
+const adminToken = issueJWT(Number(admin.lastInsertRowid));
 run(
   'INSERT INTO sessions(token_hash,user_id,expires) VALUES(?,?,?)',
   digest(adminToken),
@@ -47,6 +49,8 @@ const server = spawn(
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_SECURE_COOKIES: '0',
       TECHCARE_BUILD_DIR: '.next-production',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
+      TECHCARE_JWT_SECRET: testJwtSecret,
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
