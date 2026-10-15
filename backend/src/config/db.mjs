@@ -3,17 +3,24 @@ import { mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { guides, defaultBooth } from '../../../shared/src/content-defaults.mjs';
+import { isIsolatedTestRuntime } from './runtime.mjs';
 
 const mysqlContext = new AsyncLocalStorage();
 let mysqlPool;
 let sqliteAsyncBusy = false;
 let sqliteAsyncTail = Promise.resolve();
 const useSQLiteTests = () =>
-  process.env.NODE_ENV !== 'production' && process.env.TECHCARE_TEST_SQLITE === '1';
+  process.env.TECHCARE_TEST_SQLITE === '1' &&
+  (process.env.NODE_ENV !== 'production' || isIsolatedTestRuntime());
 const useMySQL = () => !useSQLiteTests();
+export const isMySQLRuntime = () => useMySQL();
 
 export function assertDatabaseConfig() {
-  if (process.env.NODE_ENV === 'production' && process.env.TECHCARE_DB_DRIVER === 'sqlite')
+  if (
+    process.env.NODE_ENV === 'production' &&
+    process.env.TECHCARE_DB_DRIVER === 'sqlite' &&
+    !isIsolatedTestRuntime()
+  )
     throw new Error('Production requires MySQL; SQLite is supported only for local and test use.');
   if (process.env.TECHCARE_DB_DRIVER === 'sqlite' && !useSQLiteTests())
     throw new Error('SQLite is supported only by isolated tests and migration utilities.');

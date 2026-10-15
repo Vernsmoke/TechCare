@@ -65,6 +65,9 @@ const server = spawn(
       TECHCARE_DEV_VERIFY: '0',
       TECHCARE_SECURE_COOKIES: '0',
       TECHCARE_BUILD_DIR: '.next-production',
+      TECHCARE_ISOLATED_TEST_RUNTIME: '1',
+      TECHCARE_TEST_BYPASS_CONSENT: '1',
+      TECHCARE_JWT_SECRET: 'isolated-discussion-browser-secret-at-least-32-bytes',
     },
     stdio: ['ignore', 'pipe', 'pipe'],
     windowsHide: true,
@@ -151,21 +154,7 @@ try {
     .getByLabel('Your comment', { exact: true })
     .fill('I checked another device and it stays connected.');
   await member.getByRole('button', { name: 'Send comment', exact: true }).click();
-  await expect(
-    member.getByRole('status').filter({ hasText: 'Comment submitted for moderator review.' }),
-  ).toBeVisible();
-  await expect(member.locator('.discussion-comment')).toHaveCount(1);
-  const queue = await (await context.request.get(origin + '/api/queue')).json();
-  const pending = queue.comments.find(
-    (c) => c.body === 'I checked another device and it stays connected.',
-  );
-  expect(pending).toBeTruthy();
-  const approved = await context.request.post(origin + '/api/moderate', {
-    headers: { origin, 'x-techcare-request': '1' },
-    data: { kind: 'comment', id: pending.id, status: 'published' },
-  });
-  expect(approved.status()).toBe(200);
-  await member.reload({ waitUntil: 'networkidle' });
+  await expect(member.getByRole('status').filter({ hasText: 'Comment published.' })).toBeVisible();
   await expect(member.locator('.discussion-comment')).toHaveCount(2);
   await page.goto(origin + '/discussion/3', { waitUntil: 'networkidle' });
   await page
@@ -175,7 +164,7 @@ try {
   await expect(
     page.locator('.discussion-comment').filter({ hasText: 'Try updating the wireless driver' }),
   ).toBeVisible();
-  pass('Member comments await moderation and staff comments publish inline');
+  pass('Member and staff comments publish inline');
   await guest.goto(origin + '/discussion/3', { waitUntil: 'networkidle' });
   await expect(guest.getByRole('button', { name: 'Sign in to comment' })).toBeVisible();
   await guest.getByRole('button', { name: 'Upvote question', exact: true }).click();
@@ -198,14 +187,17 @@ try {
     .filter({ hasText: 'How can I speed up my laptop?' })
     .getByRole('button', { name: 'Upvote question' })
     .click();
-  await member.getByRole('combobox', { name: 'Sort questions' }).selectOption('top');
+  await member.getByLabel('Sort by: Newest').click();
+  await member.getByRole('menuitemradio', { name: /Top rated/ }).click();
   await expect(member.locator('.discussion-post').first()).toContainText(
     'How can I speed up my laptop?',
   );
-  await member.getByRole('combobox', { name: 'Filter by topic' }).selectOption('Connectivity');
+  await member.getByLabel('Topic: All topics').click();
+  await member.getByRole('menuitemradio', { name: /Connectivity/ }).click();
   await expect(member.locator('.discussion-post')).toHaveCount(1);
   await expect(member.locator('.discussion-post')).toContainText('Why does my Wi-Fi');
-  await member.getByRole('combobox', { name: 'Filter by topic' }).selectOption('');
+  await member.getByLabel('Topic: Connectivity').click();
+  await member.getByRole('menuitemradio', { name: /All topics/ }).click();
   pass('Top sorting and category filtering work with the saved vote scores');
   await mkdir('artifacts', { recursive: true });
   await member.screenshot({ path: 'artifacts/discussion-feed-desktop.png', fullPage: true });

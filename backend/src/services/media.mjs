@@ -4,7 +4,7 @@ import { mkdir, writeFile, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
-import { dataDir, one, run, now, transaction } from '../config/db.mjs';
+import { dataDir, one, run, now, transaction, isMySQLRuntime } from '../config/db.mjs';
 import { Problem, member } from '../middleware/auth.mjs';
 import { getObject, putObject, removeObject } from './object-storage.mjs';
 const execute = promisify(execFile);
@@ -129,7 +129,7 @@ export async function readMedia(name, viewer) {
   if (asset.access === 'managed') {
     const url = `/api/media/${name}`;
     const published = await one(
-      `SELECT 1 FROM resources WHERE (url=? OR cover=?) AND status='published' UNION ALL SELECT 1 FROM booths WHERE image=? AND status='published' UNION ALL SELECT 1 FROM guides WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} AND status='published' LIMIT 1`,
+      `SELECT 1 FROM resources WHERE (url=? OR cover=?) AND status='published' UNION ALL SELECT 1 FROM booths WHERE image=? AND status='published' UNION ALL SELECT 1 FROM guides WHERE ${isMySQLRuntime() ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} AND status='published' LIMIT 1`,
       url,
       url,
       url,
@@ -177,7 +177,7 @@ export async function readMedia(name, viewer) {
   }
   if (asset.access === 'lost') {
     const row = await one(
-      `SELECT l.user_id,l.status FROM lost_found l WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(l.photos) j WHERE j.value=?)'}`,
+      `SELECT l.user_id,l.status FROM lost_found l WHERE ${isMySQLRuntime() ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(l.photos) j WHERE j.value=?)'}`,
       `/api/media/${name}`,
     );
     if (
@@ -233,7 +233,7 @@ export async function discardManagedMedia(url) {
   if (!/^[a-f0-9]{40}\.(webp|mp4|webm)$/.test(name)) return;
   if (
     await one(
-      `SELECT 1 FROM resources WHERE url=? OR cover=? UNION ALL SELECT 1 FROM booths WHERE image=? UNION ALL SELECT 1 FROM settings WHERE value=? UNION ALL SELECT 1 FROM guides WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} LIMIT 1`,
+      `SELECT 1 FROM resources WHERE url=? OR cover=? UNION ALL SELECT 1 FROM booths WHERE image=? UNION ALL SELECT 1 FROM settings WHERE value=? UNION ALL SELECT 1 FROM guides WHERE ${isMySQLRuntime() ? "JSON_SEARCH(images,'one',?) IS NOT NULL" : "EXISTS (SELECT 1 FROM json_each(guides.images) j WHERE json_extract(j.value,'$.url')=?)"} LIMIT 1`,
       url,
       url,
       url,
@@ -251,7 +251,7 @@ export async function discardCommunityMedia(url, owner) {
   if (!/^[a-f0-9]{40}\.webp$/.test(name)) return;
   if (
     await one(
-      `SELECT 1 FROM comments WHERE photo=? UNION ALL SELECT 1 FROM lost_found WHERE ${process.env.NODE_ENV === 'production' || process.env.TECHCARE_DB_DRIVER === 'mysql' ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(lost_found.photos) j WHERE j.value=?)'} LIMIT 1`,
+      `SELECT 1 FROM comments WHERE photo=? UNION ALL SELECT 1 FROM lost_found WHERE ${isMySQLRuntime() ? "JSON_SEARCH(photos,'one',?) IS NOT NULL" : 'EXISTS (SELECT 1 FROM json_each(lost_found.photos) j WHERE j.value=?)'} LIMIT 1`,
       url,
       url,
     )

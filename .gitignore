@@ -3,6 +3,7 @@ node_modules/
 .next-*/
 frontend/.next/
 frontend/.next-*/
+frontend/next-env.d.ts
 out/
 data/
 .env*
